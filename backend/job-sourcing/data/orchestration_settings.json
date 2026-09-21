@@ -1,0 +1,14 @@
+{
+  "priority_crons": {
+    "1": "0 0,2,4,13,18,20,22 * * *",
+    "2": "10 0,2,4,18,22 * * *",
+    "3": "40 13 * * *",
+    "4": "0 1 * * *"
+  },
+  "dag_enabled": {
+    "sourcing_priority_1_high_frequency": true,
+    "sourcing_priority_2_medium_frequency": true,
+    "sourcing_priority_3_low_frequency": false,
+    "sourcing_full_crawl_nightly": true
+  }
+}

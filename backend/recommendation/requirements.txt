@@ -1,0 +1,32 @@
+# Recommendation Service - runtime actif
+
+# API
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.10.6
+httpx==0.28.1
+python-multipart==0.0.20
+
+# LLM final utilisateur
+google-genai==1.7.0
+tenacity==8.5.0
+
+# Embeddings locaux
+fastembed>=0.3.6,<0.5
+
+# OCR CV (fallback PDF scan)
+pypdfium2==4.30.0
+pytesseract==0.3.13
+Pillow==10.4.0
+
+# Cache / task tracking
+redis==5.2.0
+hiredis==3.0.0
+
+# Observabilite / protection
+prometheus-client==0.21.0
+slowapi==0.1.9
+
+# Utils
+python-dotenv==1.0.0
+loguru==0.7.2

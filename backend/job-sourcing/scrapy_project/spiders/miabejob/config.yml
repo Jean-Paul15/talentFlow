@@ -1,0 +1,17 @@
+site:
+  name: miabejob
+  url: https://miabejob.com/offres
+  priority: HAUTE
+  
+scraping:
+  delay: 2
+  timeout: 40
+  retry: 3
+  
+volume:
+  monthly: 400-700
+  
+notes:
+  - Service RH specialise
+  - Offres avec durees contrat precises
+  - Bon pour CDD/stages

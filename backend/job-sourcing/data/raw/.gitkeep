@@ -1,0 +1,2 @@
+# Fichier gitkeep pour conserver le dossier data/raw dans git
+# Les donnees brutes seront stockees temporairement ici avant transfert vers MinIO

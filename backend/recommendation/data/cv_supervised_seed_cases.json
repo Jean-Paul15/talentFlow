@@ -1,0 +1,219 @@
+[
+  {
+    "id": "cv_software_backend_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "software",
+    "text": "Jean Amegbleto\nLomé, Togo\njean.ame@example.com\n+228 90 11 22 33\nlinkedin.com/in/jeaname\n\nProfil\nDéveloppeur backend Python avec 5 ans d'expérience sur les API, Docker et PostgreSQL.\n\nExpérience professionnelle\n2021 - 2026 Ingénieur backend, Koa Labs\n2019 - 2021 Développeur Python, Nova Systems\n\nFormation\nMaster informatique, Université de Lomé\n\nCompétences\nPython, FastAPI, Docker, PostgreSQL, Git, Linux"
+  },
+  {
+    "id": "cv_data_analyst_en",
+    "label": "cv",
+    "language": "en",
+    "sector": "analytics",
+    "text": "Martha Osei\nAccra, Ghana\nmartha.osei@example.com\n+233 24 555 1000\n\nProfile\nData analyst with 4 years of experience in dashboards, SQL and forecasting.\n\nWork Experience\n2022 - Present Data Analyst, Insight Retail\n2020 - 2022 BI Assistant, Nova Foods\n\nEducation\nBSc Statistics, University of Ghana\n\nSkills\nSQL, Power BI, Python, Excel, communication"
+  },
+  {
+    "id": "cv_hr_specialist_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "hr",
+    "text": "Yawa Mensah\nCotonou, Bénin\nyawa.mensah@example.com\n+229 96 11 11 11\n\nProfil\nSpécialiste RH avec 6 ans d'expérience en recrutement, paie et gestion administrative.\n\nExpérience\n2020 - 2026 Responsable RH, Benin Services\n2017 - 2020 Chargée RH, Blue Office\n\nFormation\nLicence gestion des ressources humaines\n\nCompétences\nRecrutement, paie, droit social, communication, Excel"
+  },
+  {
+    "id": "cv_logistics_manager_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "logistics",
+    "text": "Komi Dosseh\nLomé, Togo\nkomi.dosseh@example.com\n+228 92 34 56 78\n\nProfil\nResponsable logistique avec 8 ans d'expérience en supply chain et transport régional.\n\nExpérience professionnelle\n2019 - 2026 Logistic Manager, Transit West\n2016 - 2019 Coordinateur entrepôt, Atlas Cargo\n\nFormation\nMaster logistique et transport\n\nCompétences\nSupply chain, planification, ERP, négociation, management"
+  },
+  {
+    "id": "cv_marketing_lead_en",
+    "label": "cv",
+    "language": "en",
+    "sector": "marketing",
+    "text": "Grace Nartey\nAbidjan, Côte d'Ivoire\ngrace.nartey@example.com\n+225 07 70 20 30\n\nSummary\nMarketing lead with 7 years of experience in campaign strategy and digital acquisition.\n\nEmployment History\n2021 - Present Marketing Lead, Bright Telecom\n2018 - 2021 Campaign Specialist, Media Plus\n\nEducation\nMBA Marketing\n\nSkills\nGrowth marketing, analytics, copywriting, Meta Ads, Google Ads"
+  },
+  {
+    "id": "cv_bank_risk_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "finance",
+    "text": "Afi Tchalla\nLomé, Togo\nafi.tchalla@example.com\n+228 98 70 10 10\n\nProfil\nAnalyste risque bancaire avec 5 ans d'expérience en conformité et contrôle interne.\n\nExpérience\n2022 - 2026 Analyste risque, Banque Horizon\n2019 - 2022 Contrôle interne, Financia SA\n\nFormation\nMaster finance, Université de Kara\n\nCompétences\nAnalyse risque, conformité, reporting, Excel, réglementation"
+  },
+  {
+    "id": "cv_frontend_engineer_en",
+    "label": "cv",
+    "language": "en",
+    "sector": "software",
+    "text": "Noah Mensimah\nAccra, Ghana\nnoah.m@example.com\n+233 20 777 3333\ngithub.com/noahm\n\nProfile\nFrontend engineer with 3 years of experience building Flutter and React apps.\n\nProfessional Experience\n2023 - Present Frontend Engineer, TalentFlow\n2021 - 2023 Junior Mobile Developer, Pixel Labs\n\nEducation\nBSc Computer Science\n\nSkills\nFlutter, Dart, React, TypeScript, UI testing"
+  },
+  {
+    "id": "cv_admin_assistant_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "administration",
+    "text": "Mina Koudou\nLomé, Togo\nmina.koudou@example.com\n+228 91 23 45 67\n\nProfil\nAssistante administrative avec 4 ans d'expérience en accueil, suivi dossiers et facturation.\n\nExpérience\n2021 - 2026 Assistante administrative, Espace Pro\n2019 - 2021 Secrétaire, Clinique du Port\n\nFormation\nBTS Assistant de gestion\n\nCompétences\nOrganisation, accueil, Word, Excel, gestion documentaire"
+  },
+  {
+    "id": "cv_electrician_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "industry",
+    "text": "Narcisse Kafui\nKara, Togo\nnarcisse.kafui@example.com\n+228 93 22 44 55\n\nProfil\nÉlectricien bâtiment avec 9 ans d'expérience en installation et maintenance.\n\nExpérience professionnelle\n2018 - 2026 Électricien principal, BatiElec\n2014 - 2018 Technicien électricité, Sun Build\n\nFormation\nCAP Électricité, Centre technique de Kara\n\nCompétences\nCâblage, maintenance, sécurité, lecture de plans, diagnostics"
+  },
+  {
+    "id": "cv_hotel_manager_en",
+    "label": "cv",
+    "language": "en",
+    "sector": "hospitality",
+    "text": "Anita Koranteng\nDakar, Senegal\nanita.k@example.com\n+221 77 800 1100\n\nProfile\nHotel operations manager with 10 years in guest relations and service quality.\n\nExperience\n2020 - Present Operations Manager, Palm Beach Hotel\n2015 - 2020 Front Office Supervisor, City Inn\n\nEducation\nBachelor in Hospitality Management\n\nSkills\nTeam leadership, customer service, budgeting, operations"
+  },
+  {
+    "id": "cv_junior_internships_fr",
+    "label": "cv",
+    "language": "fr",
+    "sector": "software",
+    "text": "Eli Akakpo\nLomé, Togo\neli.akakpo@example.com\n+228 92 00 90 90\n\nProfil\nJeune diplômé en informatique, motivé par le développement web.\n\nExpériences\n2025 Stage développeur web, SmartCode\n2024 Projet académique: application de gestion de stock\n\nFormation\nLicence informatique, Université de Lomé\n\nCompétences\nJavaScript, HTML, CSS, Node.js, Git"
+  },
+  {
+    "id": "cv_nurse_en",
+    "label": "cv",
+    "language": "en",
+    "sector": "healthcare",
+    "text": "Evelyn Boateng\nKumasi, Ghana\nevelyn.boateng@example.com\n+233 26 000 1220\n\nProfile\nRegistered nurse with 6 years of hospital and emergency care experience.\n\nWork Experience\n2021 - Present Senior Nurse, Mercy Hospital\n2018 - 2021 Nurse, Valley Clinic\n\nEducation\nDiploma in Nursing\n\nSkills\nPatient care, triage, records, communication, emergency response"
+  },
+  {
+    "id": "noncv_invoice_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "administrative",
+    "text": "FACTURE 2026-0042\nClient: Horizon SARL\nDate: 04/04/2026\nMontant TTC: 285 000 FCFA\nConditions générales de vente applicables. Paiement sous 15 jours."
+  },
+  {
+    "id": "noncv_privacy_policy_en",
+    "label": "non_cv",
+    "language": "en",
+    "sector": "legal",
+    "text": "Privacy Policy\nThis website uses cookies and analytics services. By continuing to browse, you consent to data processing as described in our terms of service."
+  },
+  {
+    "id": "noncv_course_notes_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "education",
+    "text": "Chapitre 3 - Réseaux neuronaux\nObjectifs pédagogiques, exercices notés et calendrier des devoirs.\nExercice 1: implémenter une descente de gradient."
+  },
+  {
+    "id": "noncv_blog_post_en",
+    "label": "non_cv",
+    "language": "en",
+    "sector": "media",
+    "text": "Blog article: 7 ways to improve your sales funnel in 2026.\nClick to read more and subscribe to our newsletter for weekly growth tips."
+  },
+  {
+    "id": "noncv_contract_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "legal",
+    "text": "Contrat de prestation\nArticle 1: objet du contrat\nArticle 2: obligations des parties\nArticle 3: conditions de résiliation\nSigné à Lomé le 2 avril 2026."
+  },
+  {
+    "id": "noncv_product_sheet_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "commerce",
+    "text": "Fiche produit - Onduleur 5KVA\nCaractéristiques techniques, garantie 12 mois, prix promotionnel et conditions de livraison."
+  },
+  {
+    "id": "noncv_press_release_en",
+    "label": "non_cv",
+    "language": "en",
+    "sector": "media",
+    "text": "Press release\nOur company announces a strategic partnership to expand operations in West Africa during Q3 2026."
+  },
+  {
+    "id": "noncv_job_offer_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "recruitment",
+    "text": "Offre d'emploi - Développeur Full Stack\nMissions: développement web, maintenance, documentation.\nEnvoyez votre CV avant le 20 avril."
+  },
+  {
+    "id": "noncv_meeting_minutes_en",
+    "label": "non_cv",
+    "language": "en",
+    "sector": "operations",
+    "text": "Meeting Minutes - April 2026\nBudget review, vendor selection, rollout timeline and action items for next sprint."
+  },
+  {
+    "id": "noncv_random_notes_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "generic",
+    "text": "Liste diverse: acheter du riz, appeler le technicien, réserver un billet, noter les idées de startup pour le weekend."
+  },
+  {
+    "id": "noncv_marketing_mail_fr",
+    "label": "non_cv",
+    "language": "fr",
+    "sector": "marketing",
+    "text": "Objet: Offre spéciale formation certifiante\nCliquez ici pour découvrir notre programme premium et obtenir une réduction limitée."
+  },
+  {
+    "id": "amb_cover_letter_short_fr",
+    "label": "ambiguous",
+    "language": "fr",
+    "sector": "generic",
+    "text": "Koffi Mensah\nLomé, Togo\nkoffi.mensah@example.com\n+228 99 00 00 00\n\nMadame, Monsieur,\nJe vous adresse ma candidature au poste de commercial. Mon parcours m'a permis de renforcer ma relation client. Je reste disponible pour un entretien.\nCordialement,\nKoffi Mensah"
+  },
+  {
+    "id": "amb_linkedin_about_en",
+    "label": "ambiguous",
+    "language": "en",
+    "sector": "software",
+    "text": "Daniel Addo\nAccra, Ghana\ndaniel.addo@example.com\nlinkedin.com/in/danieladdo\n\nBackend engineer | Python | APIs | Docker\nOpen to backend opportunities across fintech and logistics."
+  },
+  {
+    "id": "amb_profile_card_fr",
+    "label": "ambiguous",
+    "language": "fr",
+    "sector": "design",
+    "text": "Awa Traoré\nAbidjan\na.traore@example.com\n\nProfil\nDesigner produit avec 4 ans d'expérience mobile, orientée recherche utilisateur et design system."
+  },
+  {
+    "id": "amb_portfolio_summary_en",
+    "label": "ambiguous",
+    "language": "en",
+    "sector": "design",
+    "text": "Samuel Doe\nPortfolio Summary\nBuilt 12 case studies on mobile onboarding, checkout redesign and retention experiments.\nAvailable for product design roles."
+  },
+  {
+    "id": "amb_skills_only_fr",
+    "label": "ambiguous",
+    "language": "fr",
+    "sector": "software",
+    "text": "Nom: Joël\nEmail: joel.dev@example.com\nCompétences: Python, FastAPI, Docker, PostgreSQL, Linux, CI/CD\nDisponible immédiatement."
+  },
+  {
+    "id": "amb_email_application_en",
+    "label": "ambiguous",
+    "language": "en",
+    "sector": "generic",
+    "text": "Subject: Application for Operations Officer\nHello,\nI am applying for your operations position. I have 3 years of coordination experience and strong reporting skills.\nPhone: +233 24 200 3000"
+  },
+  {
+    "id": "amb_half_cv_no_contact_fr",
+    "label": "ambiguous",
+    "language": "fr",
+    "sector": "sales",
+    "text": "Profil\nCommercial terrain avec expérience en prospection B2B.\nExpérience\n2022 - 2025 Responsable secteur, West Market\nCompétences\nNégociation, CRM, suivi client"
+  },
+  {
+    "id": "amb_cv_header_only_en",
+    "label": "ambiguous",
+    "language": "en",
+    "sector": "operations",
+    "text": "Michael Brown\nOperations Coordinator\n5 years experience in planning and supplier coordination.\nOpen to relocation."
+  }
+]

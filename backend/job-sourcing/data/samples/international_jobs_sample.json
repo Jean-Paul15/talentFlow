@@ -1,0 +1,15 @@
+{
+  "title": "Senior Software Engineer",
+  "company": "Global Tech Inc",
+  "location": "New York, USA",
+  "description": "We are looking for a Senior Software Engineer to join our team. Requirements: 5+ years experience, Python, AWS, Kubernetes. Full-time remote position available.",
+  "source_url": "https://example-indeed.com/jobs/456",
+  "source_name": "indeed_global",
+  "country": "USA",
+  "contract_type": "Full-time",
+  "remote": true,
+  "skills": ["Python", "AWS", "Kubernetes"],
+  "posted_date": "2026-01-30",
+  "parsed_at": "2026-02-02T10:35:00Z",
+  "hash": "b2c3d4e5f6789a1..."
+}

@@ -1,0 +1,18 @@
+site:
+  name: anpe_togo
+  url: https://anpetogo.net/offres-emploi
+  priority: TRES_HAUTE
+  official: true
+
+scraping:
+  delay: 3
+  timeout: 45
+  retry: 3
+  
+volume:
+  monthly: 600-1200
+  
+notes:
+  - Site officiel gouvernemental
+  - Source la plus fiable
+  - Mises a jour regulieres

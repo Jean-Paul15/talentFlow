@@ -1,0 +1,17 @@
+site:
+  name: emploi_tg
+  url: https://emploi.tg/offres-emploi
+  priority: HAUTE
+  
+scraping:
+  delay: 2
+  timeout: 40
+  retry: 3
+  
+volume:
+  monthly: 500-1000
+  
+notes:
+  - Plateforme majeure privee
+  - Bonne diversite offres
+  - Interface moderne

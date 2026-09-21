@@ -1,0 +1,10 @@
+node_modules
+dist
+npm-debug.log*
+gateway-runtime.log
+coverage
+.git
+.gitignore
+.env
+*.local
+

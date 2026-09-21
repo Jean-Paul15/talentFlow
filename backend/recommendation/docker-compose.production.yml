@@ -1,0 +1,142 @@
+# Docker Compose - Production avec Redis
+version: '3.8'
+
+services:
+  # Redis pour state management persistant
+  redis:
+    image: redis:7-alpine
+    container_name: talentflow-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - talentflow
+    restart: unless-stopped
+
+  # Backend API
+  recommendation:
+    build: .
+    container_name: talentflow-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # State Management
+      - STATE_BACKEND=redis
+      - REDIS_URL=redis://redis:6379
+      
+      # LLM Configuration
+      - LLM_PROVIDER=gemini
+      - LLM_PROVIDER_ORDER=gemini,deepseek
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY_FALLBACK=${GEMINI_API_KEY_FALLBACK}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - DEEPSEEK_ENABLED=${DEEPSEEK_ENABLED:-true}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - DEEPSEEK_REASONER_MODEL=${DEEPSEEK_REASONER_MODEL:-deepseek-reasoner}
+      - DEEPSEEK_TIMEOUT_SECONDS=${DEEPSEEK_TIMEOUT_SECONDS:-45}
+      - DEEPSEEK_MAX_RETRIES=${DEEPSEEK_MAX_RETRIES:-2}
+      - DEEPSEEK_MAX_OUTPUT_TOKENS_CHAT=${DEEPSEEK_MAX_OUTPUT_TOKENS_CHAT:-700}
+      - DEEPSEEK_MAX_OUTPUT_TOKENS_REASONER=${DEEPSEEK_MAX_OUTPUT_TOKENS_REASONER:-1600}
+      - DEEPSEEK_DAILY_TOKEN_BUDGET=${DEEPSEEK_DAILY_TOKEN_BUDGET:-500000}
+      - DEEPSEEK_DAILY_COST_BUDGET_USD=${DEEPSEEK_DAILY_COST_BUDGET_USD:-5.0}
+      - DEEPSEEK_REASONER_COMPLEXITY_THRESHOLD=${DEEPSEEK_REASONER_COMPLEXITY_THRESHOLD:-1.0}
+      - DEEPSEEK_REASONER_MAX_SHARE=${DEEPSEEK_REASONER_MAX_SHARE:-0.20}
+      - DEEPSEEK_QUEUE_CONCURRENCY=${DEEPSEEK_QUEUE_CONCURRENCY:-4}
+      - DEEPSEEK_QUEUE_MAX_SIZE=${DEEPSEEK_QUEUE_MAX_SIZE:-32}
+      - DEEPSEEK_QUEUE_WAIT_MS=${DEEPSEEK_QUEUE_WAIT_MS:-900}
+      - DEEPSEEK_RPM_GLOBAL=${DEEPSEEK_RPM_GLOBAL:-120}
+      - DEEPSEEK_RPM_PER_IP=${DEEPSEEK_RPM_PER_IP:-20}
+      - DEEPSEEK_INPUT_COST_PER_MILLION_CACHE_MISS=${DEEPSEEK_INPUT_COST_PER_MILLION_CACHE_MISS:-0.28}
+      - DEEPSEEK_OUTPUT_COST_PER_MILLION=${DEEPSEEK_OUTPUT_COST_PER_MILLION:-0.42}
+      - LLM_REPAIR_CACHE_TTL_SECONDS=${LLM_REPAIR_CACHE_TTL_SECONDS:-300}
+      - LLM_PROMPT_TEMPLATE_VERSION=${LLM_PROMPT_TEMPLATE_VERSION:-v2}
+      - LLM_CIRCUIT_FAILURE_THRESHOLD=${LLM_CIRCUIT_FAILURE_THRESHOLD:-5}
+      - LLM_CIRCUIT_RESET_SECONDS=${LLM_CIRCUIT_RESET_SECONDS:-60}
+      
+      # Retry Configuration
+      - MAX_LLM_RETRIES=3
+      - LLM_TIMEOUT=30
+      - CIRCUIT_BREAKER_THRESHOLD=5
+      
+      # Monitoring
+      - ENVIRONMENT=production
+      - APP_VERSION=2.0.0
+      
+      # CORS
+      - ALLOWED_ORIGINS=*
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - talentflow
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Prometheus (monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: talentflow-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    networks:
+      - talentflow
+    restart: unless-stopped
+
+  # Grafana (dashboards)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: talentflow-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - talentflow
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  talentflow:
+    driver: bridge

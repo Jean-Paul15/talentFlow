@@ -1,0 +1,25 @@
+# Search Engine - Etape 3
+# Recherche Qdrant dense-first
+
+# Core
+python-dotenv==1.0.0
+pydantic==2.10.0
+loguru==0.7.2
+pyyaml==6.0.1
+
+# FastAPI
+fastapi==0.115.0
+uvicorn==0.32.0
+
+# Qdrant (backend vectoriel officiel)
+qdrant-client==1.11.3
+fastembed>=0.3.6,<0.5
+
+# MongoDB (source des offres)
+pymongo==4.10.0
+
+# Embeddings (fastembed runtime leger)
+
+# Testing
+pytest==7.4.3
+httpx==0.26.0

@@ -1,0 +1,14 @@
+{
+  "title": "Developpeur Full Stack",
+  "company": "Tech Togo SARL",
+  "location": "Lome, Togo",
+  "description": "Nous recherchons un developpeur Full Stack experimente pour rejoindre notre equipe. Competences requises: Python, JavaScript, React, Node.js. CDI avec possibilite de teletravail partiel.",
+  "source_url": "https://example-emploi-togo.com/offres/123",
+  "source_name": "emploi_togo",
+  "country": "Togo",
+  "contract_type": "CDI",
+  "skills": ["Python", "JavaScript", "React", "Node.js"],
+  "posted_date": "2026-01-28",
+  "parsed_at": "2026-02-02T10:30:00Z",
+  "hash": "a1b2c3d4e5f6789..."
+}

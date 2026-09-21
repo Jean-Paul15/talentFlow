@@ -1,0 +1,97 @@
+# Registre des sites d'emploi - Section API
+# Sources collectees via APIs (pas de scraping HTML)
+
+from .registry_constants import PRIORITY_LOW, PRIORITY_MEDIUM
+
+
+SITES_API = {
+    # ----------------------------------------------------------------
+    # APIs actives en production
+    # ----------------------------------------------------------------
+    "jsearch_global": {
+        "label": "JSearch (Global)",
+        "url": "https://jsearch.p.rapidapi.com/search",
+        "description": "API Google for Jobs sans filtre pays (scope global)",
+        "pays": "Global",
+        "spider": "api_aggregator",
+        "api_provider": "jsearch",
+        "priority": PRIORITY_MEDIUM,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "adzuna": {
+        "label": "Adzuna (International)",
+        "url": "https://api.adzuna.com/v1/api/jobs/",
+        "description": "API Adzuna gratuite : agregateur international d'offres",
+        "pays": "International",
+        "spider": "api_aggregator",
+        "api_provider": "adzuna",
+        "adzuna_country": "fr",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "adzuna_za": {
+        "label": "Adzuna (Afrique du Sud)",
+        "url": "https://api.adzuna.com/v1/api/jobs/za/search",
+        "description": "API Adzuna : offres Afrique du Sud",
+        "pays": "Afrique du Sud",
+        "spider": "api_aggregator",
+        "api_provider": "adzuna",
+        "adzuna_country": "za",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "remoteok": {
+        "label": "RemoteOK",
+        "url": "https://remoteok.com/api",
+        "description": "API publique RemoteOK (jobs remote internationaux)",
+        "pays": "International",
+        "spider": "api_aggregator",
+        "api_provider": "remoteok",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "hackernews_hiring": {
+        "label": "HackerNews Jobs",
+        "url": "https://hacker-news.firebaseio.com/v0/",
+        "description": "API officielle Hacker News (/jobstories)",
+        "pays": "International",
+        "spider": "api_aggregator",
+        "api_provider": "hackernews",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "remotive": {
+        "label": "Remotive",
+        "url": "https://remotive.com/api/remote-jobs",
+        "description": "API publique jobs remote internationaux",
+        "pays": "International",
+        "spider": "api_aggregator",
+        "api_provider": "remotive",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+    "arbeitnow": {
+        "label": "Arbeitnow",
+        "url": "https://www.arbeitnow.com/api/job-board-api",
+        "description": "API publique job board (international)",
+        "pays": "International",
+        "spider": "api_aggregator",
+        "api_provider": "arbeitnow",
+        "priority": PRIORITY_LOW,
+        "category": "api",
+        "active": True,
+        "source": "api",
+    },
+}

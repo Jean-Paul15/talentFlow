@@ -1,0 +1,35 @@
+# Dependances pour le service de scraping des offres d'emploi
+
+# Framework de scraping
+scrapy>=2.11.0
+
+# Client MinIO (compatible S3)
+minio>=7.2.0
+
+# Client Redis pour le cache de fingerprinting
+redis>=5.0.0
+
+# Gestion des variables d'environnement
+python-dotenv>=1.0.0
+
+# Validation des donnees
+pydantic>=2.5.0
+
+# Utilitaires pour le logging
+loguru>=0.7.0
+
+# Kafka producer
+kafka-python>=2.1.2
+
+# Format YAML pour les configurations
+pyyaml>=6.0.0
+
+# API Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Requêtes HTTP
+httpx>=0.27.0
+
+# Support Brotli (si un site force "Content-Encoding: br")
+brotlicffi>=1.2.0

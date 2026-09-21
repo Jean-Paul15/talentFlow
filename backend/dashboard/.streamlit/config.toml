@@ -1,0 +1,11 @@
+[client]
+showSidebarNavigation = false
+
+[server]
+headless = true
+port = 8501
+enableXsrfProtection = false
+allowRunOnSave = true
+
+[logger]
+level = "info"

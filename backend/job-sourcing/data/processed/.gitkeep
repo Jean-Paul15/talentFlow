@@ -1,0 +1,2 @@
+# Fichier gitkeep pour conserver le dossier data/processed dans git
+# Ce dossier n'est pas utilise dans l'etape 1 (les donnees vont directement dans MinIO)

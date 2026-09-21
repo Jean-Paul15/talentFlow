@@ -1,0 +1,504 @@
+[
+  {
+    "name": "no_jobs_returns_no_match",
+    "cv_text": "Developpeur Python backend avec experience API et Docker.",
+    "cv_analysis": {
+      "skills": ["Python", "Docker", "APIs"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [],
+    "expected_mode": "no_match",
+    "expected_reason": "no_meaningful_jobs",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "low_top_score_stays_no_match",
+    "cv_text": "Data analyst Python SQL Power BI.",
+    "cv_analysis": {
+      "skills": ["Python", "SQL", "Power BI"],
+      "experience_years": 2,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-low-1",
+        "title": "Analyste reporting junior",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.58,
+        "summary": "Excel, reporting, tableaux de bord."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "low_confidence_top_score",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "strong_single_match_is_accepted",
+    "cv_text": "Ingenieur Python machine learning NLP avec experience Docker et APIs.",
+    "cv_analysis": {
+      "skills": ["Python", "Machine Learning", "NLP", "Docker"],
+      "experience_years": 4,
+      "education_level": "Master"
+    },
+    "jobs": [
+      {
+        "id": "job-strong-1",
+        "title": "Ingenieur Python NLP",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.84,
+        "summary": "Python, NLP, APIs, Docker."
+      },
+      {
+        "id": "job-strong-2",
+        "title": "Technicien support",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.41,
+        "summary": "Support utilisateur et helpdesk."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "strong_single_match",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "good_scores_but_bad_alignment_stay_no_match",
+    "cv_text": "Developpeur Python backend APIs et Docker.",
+    "cv_analysis": {
+      "skills": ["Python", "Docker", "APIs"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-misalign-1",
+        "title": "Commercial grands comptes",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.68,
+        "summary": "Negociation B2B, vente terrain, portefeuille clients."
+      },
+      {
+        "id": "job-misalign-2",
+        "title": "Charge relation client",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.64,
+        "summary": "Service client, appels entrants, suivi commercial."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "low_skill_role_alignment",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "borderline_single_match_triggers_review_but_not_match",
+    "cv_text": "Developpeur React TypeScript Node.js.",
+    "cv_analysis": {
+      "skills": ["React", "TypeScript", "Node.js"],
+      "experience_years": 2,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-borderline-1",
+        "title": "Developpeur front React",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.64,
+        "summary": "React, TypeScript, interface web."
+      },
+      {
+        "id": "job-borderline-2",
+        "title": "Assistant marketing",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.39,
+        "summary": "Marketing digital et reseaux sociaux."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "too_few_meaningful_jobs",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "backend_multi_match_high_confidence",
+    "cv_text": "Developpeur backend Python avec APIs REST, Docker et PostgreSQL.",
+    "cv_analysis": {
+      "skills": ["Python", "FastAPI", "Docker", "PostgreSQL"],
+      "experience_years": 4,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-back-1",
+        "title": "Developpeur Python Backend",
+        "company": "TalentFlow Labs",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.78,
+        "summary": "Python, FastAPI, Docker, PostgreSQL et APIs REST."
+      },
+      {
+        "id": "job-back-2",
+        "title": "Ingenieur Backend APIs",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.69,
+        "summary": "APIs, microservices, Docker, SQL."
+      },
+      {
+        "id": "job-back-3",
+        "title": "Assistant administratif",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.48,
+        "summary": "Support administratif."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "high_confidence_jobs",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "frontend_multi_match_high_confidence",
+    "cv_text": "Developpeur frontend React TypeScript avec un peu de Node.js.",
+    "cv_analysis": {
+      "skills": ["React", "TypeScript", "JavaScript", "Node.js"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-front-1",
+        "title": "Developpeur Frontend React",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.74,
+        "summary": "React, TypeScript, composants web."
+      },
+      {
+        "id": "job-front-2",
+        "title": "Developpeur Full Stack JavaScript",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.69,
+        "summary": "JavaScript, Node.js, frontend produit."
+      },
+      {
+        "id": "job-front-3",
+        "title": "Operateur de saisie",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.44,
+        "summary": "Saisie bureautique."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "high_confidence_jobs",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "data_engineer_single_strong_match",
+    "cv_text": "Ingenieur data avec Spark Kafka Airflow Python et ETL.",
+    "cv_analysis": {
+      "skills": ["Python", "Spark", "Kafka", "Airflow"],
+      "experience_years": 5,
+      "education_level": "Master"
+    },
+    "jobs": [
+      {
+        "id": "job-dataeng-1",
+        "title": "Ingenieur Data",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.86,
+        "summary": "Spark, Kafka, Airflow, ETL, Python."
+      },
+      {
+        "id": "job-dataeng-2",
+        "title": "Charge recouvrement",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.43,
+        "summary": "Recouvrement client."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "strong_single_match",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "devops_single_strong_match",
+    "cv_text": "Ingenieur DevOps Docker Kubernetes Terraform CI/CD.",
+    "cv_analysis": {
+      "skills": ["Docker", "Kubernetes", "Terraform", "CI/CD"],
+      "experience_years": 4,
+      "education_level": "Master"
+    },
+    "jobs": [
+      {
+        "id": "job-devops-1",
+        "title": "Ingenieur DevOps",
+        "company": "Infra Labs",
+        "location": "Remote",
+        "country": "International",
+        "score": 0.83,
+        "summary": "Docker, Kubernetes, CI/CD, cloud."
+      },
+      {
+        "id": "job-devops-2",
+        "title": "Assistant logistique",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.37,
+        "summary": "Gestion logistique."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "strong_single_match",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "accounting_multi_match_high_confidence",
+    "cv_text": "Comptable confirme avec paie, fiscalite, Excel et Sage.",
+    "cv_analysis": {
+      "skills": ["Comptabilite", "Paie", "Excel", "Sage"],
+      "experience_years": 4,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-account-1",
+        "title": "Comptable",
+        "company": "Cabinet Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.71,
+        "summary": "Comptabilite generale, paie, fiscalite."
+      },
+      {
+        "id": "job-account-2",
+        "title": "Assistant comptable",
+        "company": "PME Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.66,
+        "summary": "Saisie comptable, rapprochement bancaire, paie."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "high_confidence_jobs",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "hr_profile_does_not_match_technical_roles",
+    "cv_text": "Charge RH avec recrutement, administration du personnel et paie.",
+    "cv_analysis": {
+      "skills": ["Recrutement", "RH", "Paie"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-hr-mis-1",
+        "title": "Developpeur Python Backend",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.69,
+        "summary": "Python, APIs, Docker, SQL."
+      },
+      {
+        "id": "job-hr-mis-2",
+        "title": "Ingenieur Data",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.61,
+        "summary": "ETL, Python, data pipelines."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "low_skill_role_alignment",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "tight_score_gap_on_unrelated_results_stays_no_match",
+    "cv_text": "Developpeur Python backend et APIs.",
+    "cv_analysis": {
+      "skills": ["Python", "APIs", "Docker"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-gap-1",
+        "title": "Chef de projet administratif",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.67,
+        "summary": "Suivi administratif et coordination."
+      },
+      {
+        "id": "job-gap-2",
+        "title": "Assistant de direction",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.65,
+        "summary": "Gestion agenda, bureautique."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "tight_score_gap",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "slightly_low_top_score_can_still_trigger_deepseek_review",
+    "cv_text": "Developpeur Python backend avec SQL et Docker.",
+    "cv_analysis": {
+      "skills": ["Python", "SQL", "Docker"],
+      "experience_years": 2,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-lowish-1",
+        "title": "Developpeur Python junior",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.61,
+        "summary": "Python, SQL, APIs."
+      },
+      {
+        "id": "job-lowish-2",
+        "title": "Developpeur backend",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.57,
+        "summary": "Backend web et base de donnees."
+      }
+    ],
+    "expected_mode": "no_match",
+    "expected_reason": "low_confidence_top_score",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "ambiguous_multi_match_uses_deepseek_first",
+    "cv_text": "Data analyst SQL Power BI Excel avec reporting et dashboards.",
+    "cv_analysis": {
+      "skills": ["SQL", "Power BI", "Excel"],
+      "experience_years": 3,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-da-1",
+        "title": "Data Analyst",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.66,
+        "summary": "SQL, dashboards, reporting BI."
+      },
+      {
+        "id": "job-da-2",
+        "title": "Analyste BI",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.55,
+        "summary": "Power BI, SQL, tableau de bord."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "high_confidence_jobs",
+    "expect_deepseek_first": true
+  },
+  {
+    "name": "java_backend_multi_match_high_confidence",
+    "cv_text": "Developpeur Java Spring Boot backend et microservices.",
+    "cv_analysis": {
+      "skills": ["Java", "Spring Boot", "SQL", "Docker"],
+      "experience_years": 4,
+      "education_level": "Master"
+    },
+    "jobs": [
+      {
+        "id": "job-java-1",
+        "title": "Developpeur Java Backend",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.76,
+        "summary": "Java, Spring Boot, APIs, SQL."
+      },
+      {
+        "id": "job-java-2",
+        "title": "Ingenieur Logiciel Java",
+        "company": "Exemple",
+        "location": "Remote",
+        "country": "International",
+        "score": 0.68,
+        "summary": "Spring, microservices, Docker."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "high_confidence_jobs",
+    "expect_deepseek_first": false
+  },
+  {
+    "name": "php_fullstack_single_strong_match",
+    "cv_text": "Developpeur PHP Laravel full stack avec MySQL et JavaScript.",
+    "cv_analysis": {
+      "skills": ["PHP", "Laravel", "MySQL", "JavaScript"],
+      "experience_years": 4,
+      "education_level": "Licence"
+    },
+    "jobs": [
+      {
+        "id": "job-php-1",
+        "title": "Developpeur PHP Laravel",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.85,
+        "summary": "PHP, Laravel, MySQL, JavaScript."
+      },
+      {
+        "id": "job-php-2",
+        "title": "Assistant achats",
+        "company": "Exemple",
+        "location": "Lome",
+        "country": "Togo",
+        "score": 0.35,
+        "summary": "Achats et fournisseurs."
+      }
+    ],
+    "expected_mode": "match",
+    "expected_reason": "strong_single_match",
+    "expect_deepseek_first": true
+  }
+]

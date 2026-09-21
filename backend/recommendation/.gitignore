@@ -1,0 +1,26 @@
+# Environnement
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Uploads temporaires
+uploads/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# Modeles caches
+models/
+.cache/
+
+# Logs
+*.log
+logs/
+
+# Online RL runtime artifacts
+data/cv_rl_policy_state.json
+data/cv_rl_policy_events.jsonl

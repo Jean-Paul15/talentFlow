@@ -1,0 +1,15 @@
+site:
+  name: lucreatif
+  label: Lucreatif
+  country: Togo
+  start_url: https://lucreatif.com/job-list/
+
+scraping:
+  download_delay: 2
+  concurrent_requests_per_domain: 2
+  timeout_seconds: 30
+
+notes:
+  - Listing pages: /job-list/ + /job-list/page/{n}/
+  - Detail pages: /job/<slug>/
+  - Extra metadata fallback: /wp-json/wp/v2/job_listing/<id>

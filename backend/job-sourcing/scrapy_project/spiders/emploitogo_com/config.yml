@@ -1,0 +1,17 @@
+site:
+  name: emploitogo_com
+  url: https://emploitogo.com/trouver-un-emploi/
+  priority: HAUTE
+  
+scraping:
+  delay: 3
+  timeout: 45
+  retry: 3
+  
+volume:
+  monthly: 300-800
+  
+notes:
+  - Appels offres + prive
+  - Parfois des PDFs
+  - Mix secteur public/prive

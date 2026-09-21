@@ -1,0 +1,5 @@
+# Dependances optionnelles pour rendu JavaScript (Scrapy + Playwright)
+# Installer uniquement si necessaire (sites SPA comme Wiijob).
+
+scrapy-playwright>=0.0.34
+playwright>=1.49.0

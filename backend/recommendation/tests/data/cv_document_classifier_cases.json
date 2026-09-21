@@ -1,0 +1,186 @@
+[
+  {
+    "name": "fr_backend_cv",
+    "expected_document_kind": "cv",
+    "language": "fr",
+    "source_type": "pdf_text_export",
+    "sector": "software",
+    "min_confidence": 0.72,
+    "text": "Jean Kossi\nLomé, Togo\njean.kossi@example.com\n+228 90 00 00 00\nlinkedin.com/in/jeankossi\n\nProfil\nDéveloppeur backend Python avec 4 ans d'expérience sur les API REST, Docker et PostgreSQL.\n\nExpérience professionnelle\n2021 - 2024 Développeur Python, TalentFlow Labs\n- Développement de services FastAPI et Docker\n- Maintenance de pipelines de données\n\nFormation\n2020 Licence informatique, Université de Lomé\n\nCompétences\nPython, FastAPI, Docker, PostgreSQL, Git, Linux",
+    "notes": "CV technique structuré classique en français."
+  },
+  {
+    "name": "en_accounting_cv",
+    "expected_document_kind": "cv",
+    "language": "en",
+    "source_type": "docx_export",
+    "sector": "finance",
+    "min_confidence": 0.68,
+    "text": "Ama Mensah\nAccra, Ghana\nama.mensah@example.com\n+233 20 000 0000\n\nProfile\nDetail-oriented accountant with 6 years of experience in reporting and audit support.\n\nWork Experience\n2019 - Present Senior Accountant, Coastline Holdings\n- Prepared monthly financial statements\n- Coordinated audit documentation and reconciliations\n\nEducation\nBachelor of Accounting, University of Ghana\n\nSkills\nExcel, reporting, accounting, communication",
+    "notes": "Le détecteur doit rester métier-agnostique."
+  },
+  {
+    "name": "fr_sales_cv",
+    "expected_document_kind": "cv",
+    "language": "fr",
+    "source_type": "pdf_text_export",
+    "sector": "sales",
+    "min_confidence": 0.66,
+    "text": "Clarisse Adjo\nCotonou, Bénin\nclarisse.adjo@example.com | +229 97 00 00 00\n\nProfil\nCommerciale B2B avec 5 ans d'expérience en prospection, négociation et fidélisation.\n\nExpérience\n2020 - 2025 Responsable commerciale, West Trade\n- Développement du portefeuille clients\n- Suivi des objectifs de vente et reporting CRM\n\nFormation\nMaster en commerce international, ESGIS\n\nCompétences\nNégociation, relation client, CRM, reporting, PowerPoint",
+    "notes": "CV hors tech avec sections, années et coordonnées."
+  },
+  {
+    "name": "en_teacher_cv",
+    "expected_document_kind": "cv",
+    "language": "en",
+    "source_type": "plain_text",
+    "sector": "education",
+    "min_confidence": 0.64,
+    "text": "Michael Brown\nDakar, Senegal\nmichael.brown@example.com\n+221 77 000 0000\n\nProfile\nSecondary school teacher with 8 years of classroom and curriculum experience.\n\nProfessional Experience\n2018 - Present English Teacher, Horizon Academy\n2015 - 2018 Teaching Assistant, Bright Future School\n\nEducation\nBachelor of Education, University of Dakar\n\nSkills\nClassroom management, lesson planning, mentoring",
+    "notes": "CV en anglais avec chronologie et structure nette."
+  },
+  {
+    "name": "fr_healthcare_cv",
+    "expected_document_kind": "cv",
+    "language": "fr",
+    "source_type": "pdf_text_export",
+    "sector": "healthcare",
+    "min_confidence": 0.65,
+    "text": "Afi Dossou\nLomé, Togo\nafi.dossou@example.com\n+228 91 00 00 00\n\nProfil\nInfirmière diplômée d'État avec 7 ans d'expérience en soins hospitaliers.\n\nExpérience professionnelle\n2019 - 2025 Infirmière, CHU Sylvanus Olympio\n2017 - 2019 Infirmière stagiaire, Clinique du Soleil\n\nFormation\n2017 Diplôme d'infirmière d'État, École nationale des auxiliaires médicaux\n\nCompétences\nSoins, triage, dossiers patients, communication, urgences",
+    "notes": "CV santé: le classifieur doit capter formation + expérience + compétences."
+  },
+  {
+    "name": "fr_support_cv",
+    "expected_document_kind": "cv",
+    "language": "fr",
+    "source_type": "plain_text",
+    "sector": "customer_support",
+    "min_confidence": 0.62,
+    "text": "Kokou Lawson\nLomé, Togo\nkokou.lawson@example.com\n+228 92 00 00 00\n\nRésumé\nTechnicien support avec 3 ans d'expérience en assistance utilisateur et maintenance informatique.\n\nExpérience\n2022 - 2025 Technicien support, Digital Care\n- Résolution d'incidents poste de travail\n- Suivi des tickets et documentation\n\nFormation\nBTS Informatique de gestion\n\nCompétences\nWindows, support, helpdesk, réseau, communication",
+    "notes": "Cas proche du minimum acceptable, mais reste un vrai CV."
+  },
+  {
+    "name": "en_project_manager_cv",
+    "expected_document_kind": "cv",
+    "language": "en",
+    "source_type": "docx_export",
+    "sector": "operations",
+    "min_confidence": 0.66,
+    "text": "Linda Boateng\nAbidjan, Côte d'Ivoire\nlinda.boateng@example.com\n+225 07 00 00 00\n\nSummary\nProject coordinator with 5 years of experience in operations, planning and stakeholder follow-up.\n\nEmployment History\n2021 - Present Project Coordinator, Orange Business\n2018 - 2021 Operations Officer, Smart Delivery\n\nEducation\nMBA, African Leadership Institute\n\nSkills\nPlanning, reporting, stakeholder management, Excel, communication",
+    "notes": "CV de gestion, pas de biais métier tech."
+  },
+  {
+    "name": "fr_designer_cv",
+    "expected_document_kind": "cv",
+    "language": "fr",
+    "source_type": "pdf_text_export",
+    "sector": "design",
+    "min_confidence": 0.63,
+    "text": "Mariam Traoré\nBamako, Mali\nmariam.traore@example.com\n+223 70 00 00 00\nportfolio: behance.net/mariamtraore\n\nProfil\nDesigner UI/UX avec 4 ans d'expérience sur des produits mobiles et web.\n\nExpérience professionnelle\n2021 - 2025 Product Designer, Studio Atlas\n2019 - 2021 UI Designer, Pixel Works\n\nFormation\nLicence design numérique\n\nCompétences\nFigma, prototypage, design systems, recherche utilisateur, wireframes",
+    "notes": "Présence d'un portfolio, structure CV claire."
+  },
+  {
+    "name": "fr_course_notes_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "course_notes",
+    "sector": "education",
+    "max_confidence": 0.3,
+    "text": "Chapitre 2 - Introduction au machine learning\nCe cours présente les objectifs pédagogiques, les exercices à rendre et les conditions générales d'évaluation du semestre.\nQuestion 1: définir la régression logistique.\nQuestion 2: expliquer la validation croisée.",
+    "notes": "Notes de cours, aucune structure CV."
+  },
+  {
+    "name": "invoice_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "invoice",
+    "sector": "administrative",
+    "max_confidence": 0.25,
+    "text": "FACTURE N° 2026-0048\nClient: Société Horizon\nMontant TTC: 245 000 FCFA\nDate d'échéance: 15/04/2026\nConditions générales de vente et pénalités de retard applicables.",
+    "notes": "Document administratif pur."
+  },
+  {
+    "name": "blog_article_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "blog_article",
+    "sector": "media",
+    "max_confidence": 0.32,
+    "text": "Article de blog: Comment r?ussir sa transformation digitale en 2026.\nCliquez pour lire la suite et t?l?charger notre livre blanc.\nCette newsletter pr?sente les tendances du march? et nos conseils strat?giques.",
+    "notes": "Texte marketing / blog."
+  },
+  {
+    "name": "privacy_policy_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "legal",
+    "sector": "legal",
+    "max_confidence": 0.18,
+    "text": "Politique de confidentialit?\nNous utilisons des cookies pour am?liorer votre exp?rience. Ces conditions g?n?rales d?crivent le traitement des donn?es personnelles et les modalit?s de consentement.",
+    "notes": "Document l?gal explicite."
+  },
+  {
+    "name": "job_offer_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "job_posting",
+    "sector": "recruitment",
+    "max_confidence": 0.34,
+    "text": "Offre d'emploi - D?veloppeur Full Stack\nNous recrutons un d?veloppeur avec exp?rience React et Node.js.\nMissions: d?veloppement, maintenance, documentation.\nMerci d'envoyer votre CV avant le 15 avril.",
+    "notes": "Une offre d'emploi contient des mots CV-like mais n'est pas un CV."
+  },
+  {
+    "name": "meeting_minutes_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "meeting_minutes",
+    "sector": "operations",
+    "max_confidence": 0.33,
+    "text": "Compte-rendu de r?union du 3 avril 2026\nBudget marketing du trimestre, arbitrage des fournisseurs, calendrier de communication, validation des maquettes et actions de suivi.",
+    "notes": "Document professionnel mais pas CV."
+  },
+  {
+    "name": "cover_letter_ambiguous",
+    "expected_document_kind": "ambiguous",
+    "language": "fr",
+    "source_type": "cover_letter",
+    "sector": "generic",
+    "min_confidence": 0.42,
+    "max_confidence": 0.61,
+    "text": "Koffi Mensah\nLom?, Togo\nkoffi.mensah@example.com\n+228 99 00 00 00\n\nMadame, Monsieur,\nJe vous adresse ma candidature au poste de commercial service client. Mon parcours m'a permis de d?velopper un excellent sens du service et de la relation client. Je reste disponible pour un entretien.\nCordialement,\nKoffi Mensah",
+    "notes": "Lettre de motivation: proche d'une candidature mais insuffisante pour une analyse CV compl?te."
+  },
+  {
+    "name": "short_profile_ambiguous",
+    "expected_document_kind": "ambiguous",
+    "language": "en",
+    "source_type": "profile_snippet",
+    "sector": "generic",
+    "min_confidence": 0.42,
+    "max_confidence": 0.61,
+    "text": "Sarah Lee\nAccra, Ghana\nsarah.lee@example.com\n\nProfile\nProduct designer based in Accra. 4 years of experience in mobile interfaces, user research and design systems. Open to remote opportunities.",
+    "notes": "Profil trop court, sans vraie structure exp?rience/formation."
+  },
+  {
+    "name": "linkedin_about_ambiguous",
+    "expected_document_kind": "ambiguous",
+    "language": "en",
+    "source_type": "linkedin_about",
+    "sector": "software",
+    "min_confidence": 0.42,
+    "max_confidence": 0.61,
+    "text": "Daniel Addo\nAccra, Ghana\ndaniel.addo@example.com\nlinkedin.com/in/danieladdo\n\nBackend engineer | Python | APIs | Docker\nOpen to backend opportunities. I enjoy building resilient services and mentoring junior developers across fintech and logistics products.",
+    "notes": "R?sum? de profil social, utile mais incomplet pour un CV.",
+    "ci_enforced": false
+  },
+  {
+    "name": "project_case_study_non_cv",
+    "expected_document_kind": "non_cv",
+    "language": "fr",
+    "source_type": "portfolio_case_study",
+    "sector": "design",
+    "max_confidence": 0.35,
+    "text": "?tude de cas produit\nRefonte du parcours de r?servation d'une application mobile. Recherche utilisateur, wireframes, tests, it?rations et r?sultats sur le taux de conversion.",
+    "notes": "Case study portefeuille: pertinent pour un recruteur, mais pas un CV complet."
+  }
+]
