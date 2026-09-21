@@ -1,0 +1,239 @@
+name: Deploy TalentFlow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-oci.yml"
+  workflow_dispatch:
+    inputs:
+      deploy_profile:
+        description: "Docker Compose profile"
+        required: true
+        default: "lake-only"
+        type: choice
+        options:
+          - lake-only
+          - sourcing-only
+          - sourcing
+          - orchestration
+          - all
+      force_rebuild:
+        description: "Force docker compose rebuild"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose (lake-only + sourcing-only)
+        run: |
+          docker compose -f backend/docker-compose.yml --profile lake-only config > /dev/null
+          docker compose -f backend/docker-compose.yml --profile sourcing-only config > /dev/null
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: validate
+    env:
+      DEPLOY_PROFILE: ${{ github.event.inputs.deploy_profile || 'lake-only' }}
+      FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
+      OCI_HOST: ${{ secrets.OCI_HOST }}
+      OCI_USER: ${{ secrets.OCI_USER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          set -euo pipefail
+          [ -n "${{ secrets.OCI_HOST }}" ] || { echo "::error::Missing secret OCI_HOST"; exit 1; }
+          [ -n "${{ secrets.OCI_USER }}" ] || { echo "::error::Missing secret OCI_USER"; exit 1; }
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || { echo "::error::Missing secret OCI_SSH_KEY"; exit 1; }
+
+      - name: Resolve deployment directory
+        id: app_dir
+        run: |
+          set -euo pipefail
+          app_dir="${{ secrets.OCI_APP_DIR }}"
+          if [ -z "$app_dir" ]; then
+            app_dir="/opt/talentflow"
+          fi
+          echo "value=$app_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Check SSH port reachability
+        run: |
+          set -euo pipefail
+          host="${{ secrets.OCI_HOST }}"
+          timeout 180 bash -c "cat < /dev/null > /dev/tcp/${host}/22" || {
+            echo "::error::Cannot reach ${host}:22 from GitHub runner."
+            echo "::error::Open ingress TCP/22 in cloud firewall/security group."
+            exit 1
+          }
+
+      - name: Ensure remote target directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.OCI_HOST }}
+          username: ${{ env.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          timeout: 600s
+          command_timeout: 45m
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ steps.app_dir.outputs.value }}"
+            sudo mkdir -p "$APP_DIR"
+            sudo chown -R "${USER}:${USER}" "$APP_DIR"
+            ls -la "$APP_DIR"
+
+      - name: Upload backend and monitoring
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.OCI_HOST }}
+          username: ${{ env.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          source: "backend,monitoring"
+          target: ${{ steps.app_dir.outputs.value }}
+          overwrite: true
+          strip_components: 0
+          rm: false
+          timeout: 600s
+          command_timeout: 60m
+
+      - name: Deploy on remote with retry
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.OCI_HOST }}
+          username: ${{ env.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          timeout: 600s
+          command_timeout: 90m
+          script: |
+            set -euo pipefail
+            PROFILE="${{ env.DEPLOY_PROFILE }}"
+            REBUILD="${{ env.FORCE_REBUILD }}"
+            APP_DIR="${{ steps.app_dir.outputs.value }}"
+            cd "$APP_DIR/backend"
+
+            if [ ! -f ".env" ]; then
+              echo "Missing $APP_DIR/backend/.env"
+              exit 1
+            fi
+
+            set -a
+            source .env
+            set +a
+            : "${MINIO_ROOT_USER:?MINIO_ROOT_USER missing in .env}"
+            : "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD missing in .env}"
+
+            dc() {
+              if docker compose version >/dev/null 2>&1; then
+                docker compose "$@"
+              else
+                sudo docker compose "$@"
+              fi
+            }
+
+            export COMPOSE_PARALLEL_LIMIT=1
+            export DOCKER_CLIENT_TIMEOUT=1800
+            export COMPOSE_HTTP_TIMEOUT=1800
+
+            if [ "$PROFILE" = "lake-only" ]; then
+              # Force Streamlit en mode minimal (sans pages sourcing).
+              export DASHBOARD_MODE=lake_only
+
+              # Liberer la VM micro: arreter les services non necessaires.
+              dc stop job-sourcing spark-streaming airflow postgres kafka zookeeper redis data-cleaning mongodb elasticsearch api-gateway recommendation search-engine prometheus grafana ollama || true
+              dc rm -f job-sourcing spark-streaming airflow postgres kafka zookeeper redis data-cleaning mongodb elasticsearch api-gateway recommendation search-engine prometheus grafana ollama || true
+
+              for i in 1 2 3 4 5; do
+                dc pull minio lake-api streamlit && break
+                [ "$i" -eq 5 ] && echo "pull failed after retries, continue with local cache"
+                sleep $((i * 30))
+              done
+
+              for i in 1 2 3; do
+                # Toujours rebuild lake-api + streamlit pour appliquer les nouveautes au push.
+                dc up -d --remove-orphans minio || true
+                dc up -d --build --remove-orphans lake-api streamlit && break
+                [ "$i" -eq 3 ] && { echo "compose up failed after retries"; exit 1; }
+                sleep $((i * 45))
+              done
+
+              wait_health() {
+                local container="$1"
+                local retries="${2:-40}"
+                local sleep_s="${3:-10}"
+                local i status
+                for i in $(seq 1 "$retries"); do
+                  status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+                  if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
+                    echo "$container status=$status"
+                    return 0
+                  fi
+                  echo "Waiting $container (attempt $i/$retries) status=${status:-unknown}"
+                  sleep "$sleep_s"
+                done
+                echo "Timed out waiting for $container"
+                return 1
+              }
+
+              wait_health backend-minio-1 30 8 || true
+              wait_health backend-streamlit-1 30 8 || true
+
+              dc ps minio lake-api streamlit
+              exit 0
+            fi
+
+            for i in 1 2 3 4 5; do
+              dc --profile "$PROFILE" pull && break
+              [ "$i" -eq 5 ] && echo "pull failed after retries, continue with local cache"
+              sleep $((i * 30))
+            done
+
+            for i in 1 2 3; do
+              if [ "$REBUILD" = "true" ]; then
+                dc --profile "$PROFILE" up -d --build --remove-orphans && break
+              else
+                dc --profile "$PROFILE" up -d --no-build --remove-orphans && break
+              fi
+              [ "$i" -eq 3 ] && { echo "compose up failed after retries"; exit 1; }
+              sleep $((i * 45))
+            done
+
+            # Wait for core health checks used by sourcing flow.
+            wait_health() {
+              local container="$1"
+              local retries="${2:-40}"
+              local sleep_s="${3:-10}"
+              local i status
+              for i in $(seq 1 "$retries"); do
+                status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+                if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
+                  echo "$container status=$status"
+                  return 0
+                fi
+                echo "Waiting $container (attempt $i/$retries) status=${status:-unknown}"
+                sleep "$sleep_s"
+              done
+              echo "Timed out waiting for $container"
+              return 1
+            }
+
+            wait_health backend-minio-1 30 8 || true
+            wait_health backend-kafka-1 45 10 || true
+
+            # Run up once more so services blocked by transient unhealthy deps can start.
+            if [ "$REBUILD" = "true" ]; then
+              dc --profile "$PROFILE" up -d --build --remove-orphans || true
+            else
+              dc --profile "$PROFILE" up -d --no-build --remove-orphans || true
+            fi
+
+            dc --profile "$PROFILE" ps

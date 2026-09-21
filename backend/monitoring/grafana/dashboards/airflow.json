@@ -1,0 +1,51 @@
+{
+  "dashboard": {
+    "title": "TalentFlow - Pipeline Airflow",
+    "uid": "talentflow-airflow",
+    "timezone": "browser",
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pipeline Success Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "rate(airflow_dag_run_success[7d]) / rate(airflow_dag_run_total[7d])"
+          }
+        ],
+        "gauge": {"minValue": 0, "maxValue": 1}
+      },
+      {
+        "id": 2,
+        "title": "Last Run Duration",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "airflow_dag_run_duration{state=\"success\"}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Tasks Executed",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(airflow_task_run_total[1h])"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Jobs Scraped",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(scraped_jobs_total[24h])"
+          }
+        ]
+      }
+    ]
+  }
+}

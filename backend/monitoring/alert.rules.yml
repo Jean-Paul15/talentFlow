@@ -1,0 +1,60 @@
+groups:
+  - name: talentflow_uptime
+    interval: 30s
+    rules:
+      - alert: TargetScrapeDown
+        expr: up{job=~"node-exporter|cadvisor|qdrant"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target non joignable ({{ $labels.job }})"
+          description: "Prometheus ne scrape plus {{ $labels.instance }} depuis 2 minutes."
+
+      - alert: InternalEndpointDown
+        expr: probe_success{job="blackbox-http-internal"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Endpoint interne indisponible"
+          description: "Le probe interne echoue pour {{ $labels.instance }}."
+
+      - alert: PublicEndpointDown
+        expr: probe_success{job="blackbox-http-public"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Endpoint public indisponible"
+          description: "Le probe public echoue pour {{ $labels.instance }}."
+
+  - name: talentflow_host
+    interval: 30s
+    rules:
+      - alert: HostCpuHigh
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU hote eleve"
+          description: "CPU > 85% sur {{ $labels.instance }} pendant 10m."
+
+      - alert: HostMemoryHigh
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memoire hote elevee"
+          description: "RAM > 90% sur {{ $labels.instance }} pendant 10m."
+
+      - alert: HostDiskLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 10
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Espace disque faible"
+          description: "Disque < 10% libre sur {{ $labels.instance }}."

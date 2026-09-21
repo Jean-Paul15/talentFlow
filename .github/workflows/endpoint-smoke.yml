@@ -1,0 +1,292 @@
+name: Endpoint Smoke
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      run_full:
+        description: "Exécuter aussi la suite complète"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  critical:
+    name: Critical Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL != '' && secrets.API_BASE_URL || 'https://api.example.com' }}
+      RUNTIME_INTERNAL_TOKEN: ${{ secrets.RUNTIME_INTERNAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run critical checks + maintenance contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.getenv("API_BASE_URL", "https://api.example.com").strip().rstrip("/")
+          token = os.getenv("RUNTIME_INTERNAL_TOKEN", "").strip()
+          started = int(time.time())
+
+          def req(name, method, path, expected, body=None, headers=None):
+            url = f"{base}{path}"
+            payload = None
+            req_headers = {"Accept": "application/json"}
+            if headers:
+              req_headers.update(headers)
+            if body is not None:
+              req_headers["Content-Type"] = "application/json"
+              payload = json.dumps(body).encode("utf-8")
+            request = urllib.request.Request(url, data=payload, method=method, headers=req_headers)
+            t0 = time.time()
+            status = 0
+            response_text = ""
+            error_text = ""
+            response_headers = {}
+            ok = False
+            try:
+              with urllib.request.urlopen(request, timeout=12) as response:
+                status = int(response.status)
+                response_headers = dict(response.headers.items())
+                response_text = response.read().decode("utf-8", errors="ignore")
+                ok = status in expected
+            except urllib.error.HTTPError as exc:
+              status = int(exc.code)
+              response_headers = dict(exc.headers.items()) if exc.headers else {}
+              response_text = exc.read().decode("utf-8", errors="ignore")
+              ok = status in expected
+              if not ok:
+                error_text = f"HTTPError {exc.code}"
+            except Exception as exc:
+              error_text = str(exc)
+            elapsed = int((time.time() - t0) * 1000)
+            return {
+              "endpoint": name,
+              "path": path,
+              "method": method,
+              "status": status,
+              "latency_ms": elapsed,
+              "ok": ok,
+              "error_class": error_text[:180],
+              "response_preview": response_text[:300],
+              "response_headers": response_headers,
+            }
+
+          checks = [
+            ("health", "GET", "/health", {200}, None, None),
+            ("cache_version", "GET", "/runtime/cache-version", {200, 401}, None, None),
+            ("ops_status", "GET", "/runtime/ops-status", {200, 401}, None, None),
+            ("guard_status", "GET", "/runtime/guard/status", {200, 401}, None, None),
+            ("graphql_reach", "POST", "/graphql", {200, 400, 401}, {"query": "query { __typename }"}, None),
+            ("auth_validation", "POST", "/auth/login", {400, 401}, {"email": "smoke@example.com", "password": "invalid-pass"}, None),
+            ("cv_extract_validation", "POST", "/search/extract-cv-text", {400, 401, 415, 422}, {}, None),
+          ]
+
+          results = [req(*c) for c in checks]
+          failed = [r for r in results if not r["ok"]]
+          maintenance_contract = {"checked": False, "ok": None, "reason": "skipped"}
+
+          if token:
+            headers = {"x-internal-token": token}
+            try:
+              maintenance_contract["checked"] = True
+              on_resp = req(
+                "maintenance_toggle_on",
+                "POST",
+                "/runtime/maintenance/toggle",
+                {200},
+                {
+                  "domain": "search",
+                  "active": True,
+                  "retryAfterSeconds": 120,
+                  "message": "Maintenance en cours. Réessaie dans quelques instants.",
+                },
+                headers,
+              )
+              results.append(on_resp)
+              probe = req(
+                "maintenance_contract_search",
+                "POST",
+                "/search",
+                {503},
+                {"query": "python"},
+                None,
+              )
+              results.append(probe)
+              code_ok = '"code":"SERVICE_MAINTENANCE"' in probe["response_preview"]
+              retry_ok = bool(probe["response_headers"].get("Retry-After"))
+              maintenance_contract["ok"] = bool(probe["ok"] and code_ok and retry_ok)
+              maintenance_contract["reason"] = "ok" if maintenance_contract["ok"] else "missing_code_or_retry_after"
+            finally:
+              off_resp = req(
+                "maintenance_toggle_off",
+                "POST",
+                "/runtime/maintenance/toggle",
+                {200},
+                {"domain": "search", "active": False, "message": "Service rétabli."},
+                {"x-internal-token": token},
+              )
+              results.append(off_resp)
+          else:
+            maintenance_contract = {
+              "checked": False,
+              "ok": True,
+              "reason": "RUNTIME_INTERNAL_TOKEN absent: test contrat maintenance ignoré",
+            }
+
+          report = {
+            "suite": "critical",
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "started_at_epoch": started,
+            "api_base_url": base,
+            "summary": {
+              "total": len(results),
+              "failed": len([r for r in results if not r["ok"]]),
+              "maintenance_contract": maintenance_contract,
+            },
+            "results": results,
+          }
+
+          with open("smoke-critical.json", "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+
+          if report["summary"]["failed"] > 0 or not maintenance_contract.get("ok", False):
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            sys.exit(1)
+
+          print(json.dumps(report["summary"], ensure_ascii=False))
+          PY
+
+      - name: Upload critical artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: endpoint-smoke-critical
+          path: smoke-critical.json
+
+  full:
+    name: Full Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_full == 'true') }}
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL != '' && secrets.API_BASE_URL || 'https://api.example.com' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run full checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.getenv("API_BASE_URL", "https://api.example.com").strip().rstrip("/")
+
+          def req(name, method, path, expected, body=None):
+            url = f"{base}{path}"
+            headers = {"Accept": "application/json"}
+            data = None
+            if body is not None:
+              headers["Content-Type"] = "application/json"
+              data = json.dumps(body).encode("utf-8")
+            request = urllib.request.Request(url, data=data, method=method, headers=headers)
+            t0 = time.time()
+            status = 0
+            response_text = ""
+            error_text = ""
+            ok = False
+            try:
+              with urllib.request.urlopen(request, timeout=12) as response:
+                status = int(response.status)
+                response_text = response.read().decode("utf-8", errors="ignore")
+                ok = status in expected
+            except urllib.error.HTTPError as exc:
+              status = int(exc.code)
+              response_text = exc.read().decode("utf-8", errors="ignore")
+              ok = status in expected
+              if not ok:
+                error_text = f"HTTPError {exc.code}"
+            except Exception as exc:
+              error_text = str(exc)
+            return {
+              "endpoint": name,
+              "path": path,
+              "method": method,
+              "status": status,
+              "latency_ms": int((time.time() - t0) * 1000),
+              "ok": ok,
+              "error_class": error_text[:180],
+              "response_preview": response_text[:300],
+            }
+
+          checks = [
+            ("health", "GET", "/health", {200}, None),
+            ("cache_version", "GET", "/runtime/cache-version", {200, 401}, None),
+            ("ops_status", "GET", "/runtime/ops-status", {200, 401}, None),
+            ("guard_status", "GET", "/runtime/guard/status", {200, 401}, None),
+            ("graphql_reach", "POST", "/graphql", {200, 400, 401}, {"query": "query { __typename }"}),
+            ("graphql_me_unauth", "POST", "/graphql", {200, 401}, {"query": "query { me { id } }"}),
+            ("graphql_favorites_unauth", "POST", "/graphql", {200, 401}, {"query": "query { myFavorites { id jobId } }"}),
+            ("graphql_history_unauth", "POST", "/graphql", {200, 401}, {"query": "query { myRecommendationHistory { id } }"}),
+            ("graphql_cv_jobs_unauth", "POST", "/graphql", {200, 401}, {"query": "query { myCvJobs { jobId status } }"}),
+            ("auth_register_validation", "POST", "/auth/register", {400, 409, 422}, {"email": "", "password": "", "name": ""}),
+            ("auth_register_terms_required", "POST", "/auth/register", {400, 409, 422}, {"email": "probe-terms@example.com", "password": "Probe1234!", "name": "Probe Terms", "acceptTerms": False}),
+            ("auth_login_validation", "POST", "/auth/login", {400, 401}, {"email": "smoke@example.com", "password": "invalid-pass"}),
+            ("auth_refresh_validation", "POST", "/auth/refresh", {400, 401}, {"refreshToken": "invalid"}),
+            ("profile_unauth", "GET", "/users/me", {401, 403}, None),
+            ("favorites_unauth", "GET", "/favorites", {401, 403}, None),
+            ("history_unauth", "GET", "/history", {401, 403}, None),
+            ("report_unauth", "GET", "/reports/history/invalid.pdf", {401, 403, 404}, None),
+            ("search_unauth", "POST", "/search", {401, 403}, {"query": "python"}),
+            ("cv_jobs_unauth", "GET", "/cv-jobs", {401, 403}, None),
+          ]
+
+          results = [req(*c) for c in checks]
+          report = {
+            "suite": "full",
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "api_base_url": base,
+            "summary": {
+              "total": len(results),
+              "failed": len([r for r in results if not r["ok"]]),
+            },
+            "results": results,
+          }
+
+          with open("smoke-full.json", "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+
+          if report["summary"]["failed"] > 0:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            sys.exit(1)
+
+          print(json.dumps(report["summary"], ensure_ascii=False))
+          PY
+
+      - name: Upload full artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: endpoint-smoke-full
+          path: smoke-full.json

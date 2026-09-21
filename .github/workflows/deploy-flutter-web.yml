@@ -1,0 +1,124 @@
+﻿name: Deploy Flutter Web PWA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/talentflow_flutter/**"
+      - ".github/workflows/deploy-flutter-web.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-flutter-web-main
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      OCI_HOST: ${{ secrets.OCI_HOST }}
+      OCI_USER: ${{ secrets.OCI_USER }}
+      WEB_ROOT: ${{ secrets.TF_WEB_ROOT }}
+    defaults:
+      run:
+        working-directory: frontend/talentflow_flutter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy secrets
+        run: |
+          set -euo pipefail
+          [ -n "${{ secrets.OCI_HOST }}" ] || { echo "::error::Missing secret OCI_HOST"; exit 1; }
+          [ -n "${{ secrets.OCI_USER }}" ] || { echo "::error::Missing secret OCI_USER"; exit 1; }
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || { echo "::error::Missing secret OCI_SSH_KEY"; exit 1; }
+
+      - name: Set default web root
+        id: vars
+        run: |
+          root="${WEB_ROOT:-/var/www/tf}"
+          echo "web_root=$root" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install asset generator dependencies
+        run: python -m pip install pillow
+
+      - name: Generate branded PWA assets
+        run: python tool/generate_web_brand_assets.py
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Build web release
+        run: >
+          flutter build web --release
+          --base-href /
+          --dart-define=API_BASE_URL=https://api.example.com
+
+      - name: Package release
+        id: package
+        run: |
+          ARCHIVE="$GITHUB_WORKSPACE/tf-web-${{ github.sha }}.tgz"
+          tar -czf "$ARCHIVE" -C build/web .
+          ls -lh "$ARCHIVE"
+          echo "archive_name=tf-web-${{ github.sha }}.tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.OCI_HOST }}
+          username: ${{ env.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          source: ${{ github.workspace }}/${{ steps.package.outputs.archive_name }}
+          target: /tmp
+          overwrite: true
+          timeout: 600s
+          command_timeout: 60m
+
+      - name: Activate release on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.OCI_HOST }}
+          username: ${{ env.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          timeout: 600s
+          command_timeout: 45m
+          script: |
+            set -euo pipefail
+            WEB_ROOT="${{ steps.vars.outputs.web_root }}"
+            RELEASE_DIR="$WEB_ROOT/releases/${{ github.sha }}"
+            ARCHIVE="/tmp/tf-web-${{ github.sha }}.tgz"
+
+            mkdir -p "$WEB_ROOT/releases" "$WEB_ROOT/shared"
+            rm -rf "$RELEASE_DIR"
+            mkdir -p "$RELEASE_DIR"
+            tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
+            ln -sfn "$RELEASE_DIR" "$WEB_ROOT/current"
+
+            if [ -d "$WEB_ROOT/releases" ]; then
+              mapfile -t releases < <(find "$WEB_ROOT/releases" -mindepth 1 -maxdepth 1 -type d | sort)
+              if [ "${#releases[@]}" -gt 5 ]; then
+                for old_release in "${releases[@]:0:${#releases[@]}-5}"; do
+                  rm -rf "$old_release"
+                done
+              fi
+            fi
+
+            sudo systemctl reload caddy
+            rm -f "$ARCHIVE"
+
+      - name: Smoke check production web
+        run: curl -I https://app.example.com

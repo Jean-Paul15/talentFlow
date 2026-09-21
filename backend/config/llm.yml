@@ -1,0 +1,27 @@
+# LLM Configuration - officielle
+# Recommendation = Gemini
+# Data-cleaning = Mistral (configure via env), Qwen local optionnel
+llm:
+  provider: "gemini"
+  base_url: "https://generativelanguage.googleapis.com"
+  model: "gemini-2.5-flash"
+  model_priority:
+    - "gemini-2.5-flash"
+    - "gemini-2.5-flash-lite"
+    - "gemini-2.0-flash"
+  timeout_seconds: 45
+  max_retries: 2
+  retry_base_seconds: 1.0
+  temperature: 0.3
+  max_tokens: 2048
+
+  # Embeddings
+  embeddings_model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+  embeddings_dimension: 384
+  embeddings_cache: "/tmp/embeddings"
+
+  # RAG parameters
+  chunk_size: 500
+  chunk_overlap: 50
+  retrieval_k: 5
+  min_relevance: 0.7

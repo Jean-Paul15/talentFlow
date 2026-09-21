@@ -1,0 +1,24 @@
+# Kafka Configuration - UNIQUE
+kafka:
+  bootstrap_servers:
+    - "kafka:9092"
+  
+  topics:
+    jobs:
+      name: "talentflow_jobs_raw"
+      partitions: 3
+      replication_factor: 1
+    
+    cvs:
+      name: "talentflow_cvs"
+      partitions: 3
+      replication_factor: 1
+  
+  producer:
+    acks: "all"
+    retries: 3
+    batch_size: 16384
+  
+  consumer:
+    group_id: "spark-minio-writer"
+    auto_offset_reset: "latest"

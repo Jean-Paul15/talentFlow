@@ -1,0 +1,87 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+key.properties
+google-services.json
+secrets/
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+!frontend/talentflow_flutter/env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+coverage/
+.npm/
+*.tsbuildinfo
+backend/api-gateway/schema.gql
+
+# Flutter / Android
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+local.properties
+*.iml
+.gradle/
+.pub-cache/
+
+# Données, modèles, sorties
+data/raw/
+data/bronze/
+data/silver/
+*.csv
+*.parquet
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.safetensors
+*.bin
+*.sqlite
+*.db
+output/
+outputs/
+artifacts/
+backups/
+volume_exports/
+tmp/
+.tmp/
+*.log
+logs/
+
+# Documents et archives
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+*.docx
+*.pptx
+
+# Environnement local
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.api-notes.md

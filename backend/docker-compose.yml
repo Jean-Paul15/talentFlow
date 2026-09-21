@@ -1,0 +1,724 @@
+# UNIFIED Docker Compose - TalentFlow
+# Profils :
+#   (aucun)     = infra de base (redis, minio, zookeeper, kafka)
+#   sourcing    = job-sourcing + spark-streaming + data-cleaning + streamlit
+#   sourcing-only = job-sourcing + spark-streaming + data-cleaning + mongodb + lake-api + streamlit
+#   lake-only   = minio + lake-api + streamlit (mode demo stockage)
+#   monitoring  = prometheus + grafana
+#   api         = api-gateway + recommendation + search-engine + lake-api
+#   orchestration = airflow + postgres
+#   demo-bigdata = stack complete de démonstration Big Data
+#   legacy-search = elasticsearch seul (compatibilite / debug)
+#   local-llm   = runtime local Qwen pour data-cleaning uniquement
+#   all         = tout
+
+services:
+  # ---- INFRA DE BASE (demarre toujours) ----
+
+  redis:
+    image: redis:7-alpine
+    pull_policy: if_not_present
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    profiles: ["sourcing", "sourcing-only", "api", "monitoring", "demo-bigdata", "all"]
+    image: mongo:7-jammy
+    pull_policy: if_not_present
+    environment:
+      MONGO_INITDB_DATABASE: talentflow
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    profiles: ["legacy-search"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    pull_policy: if_not_present
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    profiles: ["api", "monitoring", "demo-bigdata", "all"]
+    image: qdrant/qdrant:v1.11.3
+    pull_policy: if_not_present
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      # L'image qdrant n'embarque ni curl ni wget; le HTTP probe externe marche,
+      # mais le healthcheck interne echoue si on depend de curl.
+      # On utilise un probe process-level pour eviter les faux "unhealthy".
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    pull_policy: if_not_present
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    pull_policy: if_not_present
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      # Tuning memoire pour petites VM
+      KAFKA_HEAP_OPTS: "-Xms64m -Xmx128m"
+    ports:
+      - "127.0.0.1:2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    pull_policy: if_not_present
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Tuning memoire pour petites VM
+      KAFKA_HEAP_OPTS: "-Xms128m -Xmx256m"
+    ports:
+      - "127.0.0.1:29092:29092"
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+
+  # ---- PROFIL : sourcing ----
+
+  job-sourcing:
+    profiles: ["sourcing", "sourcing-only", "demo-bigdata", "all"]
+    build:
+      context: ./job-sourcing
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MINIO_HOST: minio:9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_BRONZE:-talentflow-bronze}
+      MINIO_BUCKETS_RAW: ${MINIO_BUCKETS_RAW:-}
+      FULL_REPROCESS_INCLUDE_ARCHIVE: ${FULL_REPROCESS_INCLUDE_ARCHIVE:-false}
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_JOBS_RAW: ${KAFKA_TOPIC_JOBS_RAW:-talentflow_jobs_raw}
+      # API keys pour collecte via APIs
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY:-}
+      ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
+      ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
+      # Parallelisme du scraping
+      SCRAPING_PARALLEL_WORKERS: ${SCRAPING_PARALLEL_WORKERS:-5}
+      SCRAPY_DROP_NON_JOB_ITEMS: ${SCRAPY_DROP_NON_JOB_ITEMS:-true}
+      SCRAPY_SEMANTIC_DEDUP_ENABLED: ${SCRAPY_SEMANTIC_DEDUP_ENABLED:-true}
+      # true = uniquement spiders avec dossier dedie (deep_crawler desactive)
+      DEDICATED_SPIDERS_ONLY: ${DEDICATED_SPIDERS_ONLY:-true}
+      # URL interne inter-conteneurs (ne pas surcharger avec localhost du host)
+      AIRFLOW_URL: ${AIRFLOW_INTERNAL_URL:-http://airflow:8080}
+      AIRFLOW_USERNAME: ${AIRFLOW_USERNAME:-admin}
+      AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
+      QA_ALERT_CHANNELS: ${QA_ALERT_CHANNELS:-telegram,email}
+      QA_ALERT_MIN_ITEMS: ${QA_ALERT_MIN_ITEMS:-5}
+      QA_ALERT_DATE_RATE_MIN: ${QA_ALERT_DATE_RATE_MIN:-0.50}
+      QA_ALERT_APPLY_RATE_MIN: ${QA_ALERT_APPLY_RATE_MIN:-0.50}
+      QA_ALERT_DESCRIPTION_RATE_MIN: ${QA_ALERT_DESCRIPTION_RATE_MIN:-0.80}
+      QA_ALERT_SUCCESS_RATE_MIN: ${QA_ALERT_SUCCESS_RATE_MIN:-0.70}
+      QA_ALERT_COOLDOWN_MINUTES: ${QA_ALERT_COOLDOWN_MINUTES:-360}
+      QA_ALERT_TELEGRAM_BOT_TOKEN: ${QA_ALERT_TELEGRAM_BOT_TOKEN:-}
+      QA_ALERT_TELEGRAM_CHAT_ID: ${QA_ALERT_TELEGRAM_CHAT_ID:-}
+      QA_ALERT_EMAIL_TO: ${QA_ALERT_EMAIL_TO:-}
+      QA_ALERT_EMAIL_FROM: ${QA_ALERT_EMAIL_FROM:-}
+      QA_ALERT_SMTP_HOST: ${QA_ALERT_SMTP_HOST:-}
+      QA_ALERT_SMTP_PORT: ${QA_ALERT_SMTP_PORT:-587}
+      QA_ALERT_SMTP_USER: ${QA_ALERT_SMTP_USER:-}
+      QA_ALERT_SMTP_PASSWORD: ${QA_ALERT_SMTP_PASSWORD:-}
+      QA_ALERT_SMTP_STARTTLS: ${QA_ALERT_SMTP_STARTTLS:-true}
+    volumes:
+      - ./job-sourcing/data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  data-cleaning:
+    profiles: ["sourcing", "sourcing-only", "demo-bigdata", "all"]
+    build:
+      context: ./data-cleaning
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATA_CLEANING_LLM_PROVIDER: ${DATA_CLEANING_LLM_PROVIDER:-qwen}
+      DATA_CLEANING_LLM_ENABLED: ${DATA_CLEANING_LLM_ENABLED:-false}
+      LLM_ENABLED: ${DATA_CLEANING_LLM_ENABLED:-false}
+      QWEN_LOCAL_BASE_URL: ${QWEN_LOCAL_BASE_URL:-http://qwen-local:11434/v1}
+      QWEN_LOCAL_MODEL: ${QWEN_LOCAL_MODEL:-qwen2.5:7b-instruct}
+      QWEN_LOCAL_TIMEOUT_SECONDS: ${QWEN_LOCAL_TIMEOUT_SECONDS:-45}
+      QWEN_LOCAL_MAX_RETRIES: ${QWEN_LOCAL_MAX_RETRIES:-1}
+      QWEN_LOCAL_RETRY_BASE_SECONDS: ${QWEN_LOCAL_RETRY_BASE_SECONDS:-1.0}
+      DATA_CLEANING_LLM_FALLBACK_MISTRAL_ENABLED: ${DATA_CLEANING_LLM_FALLBACK_MISTRAL_ENABLED:-true}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      MISTRAL_TIMEOUT_SECONDS: ${MISTRAL_TIMEOUT_SECONDS:-45}
+      MISTRAL_MAX_RETRIES: ${MISTRAL_MAX_RETRIES:-2}
+      MISTRAL_RETRY_BASE_SECONDS: ${MISTRAL_RETRY_BASE_SECONDS:-1.0}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-300}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.1}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_BRONZE:-talentflow-bronze}
+      MINIO_BUCKETS_RAW: ${MINIO_BUCKETS_RAW:-}
+      FULL_REPROCESS_INCLUDE_ARCHIVE: ${FULL_REPROCESS_INCLUDE_ARCHIVE:-false}
+      DELETE_BRONZE_AFTER_ARCHIVE: ${DELETE_BRONZE_AFTER_ARCHIVE:-false}
+      LOCAL_BOARD_STALE_TTL_DAYS: ${LOCAL_BOARD_STALE_TTL_DAYS:-45}
+      API_REMOTE_STALE_TTL_DAYS: ${API_REMOTE_STALE_TTL_DAYS:-30}
+      FAST_FEED_STALE_TTL_DAYS: ${FAST_FEED_STALE_TTL_DAYS:-21}
+      MONGODB_URI: mongodb://mongodb:27017/talentflow_silver
+    ports:
+      - "127.0.0.1:8002:8000"
+    depends_on:
+      minio:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  qwen-local:
+    profiles: ["local-llm", "all"]
+    image: ollama/ollama:0.5.12
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 10
+
+  spark-streaming:
+    profiles: ["sourcing", "sourcing-only", "demo-bigdata", "all"]
+    image: apache/spark:3.5.1-python3
+    pull_policy: if_not_present
+    user: "0:0"
+    restart: unless-stopped
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_JOBS_RAW: ${KAFKA_TOPIC_JOBS_RAW:-talentflow_jobs_raw}
+      SPARK_STARTING_OFFSETS: earliest
+      SPARK_TRIGGER_SECONDS: ${SPARK_TRIGGER_SECONDS:-15}
+      SPARK_CHECKPOINT_PATH: /tmp/spark-checkpoints/jobs-raw-to-minio
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_BRONZE:-talentflow-bronze}
+    command:
+      - bash
+      - -lc
+      - |
+        python3 -c "import minio, loguru" 2>/dev/null || python3 -m pip install minio==7.2.10 loguru==0.7.2
+        /opt/spark/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /app/stream_to_minio.py
+    volumes:
+      - ./spark-streaming:/app
+      - spark_checkpoint:/tmp/spark-checkpoints
+      - spark_pip_cache:/root/.cache/pip
+      - spark_ivy_cache:/root/.ivy2
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  streamlit:
+    profiles: ["sourcing", "sourcing-only", "lake-only", "demo-bigdata", "all"]
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
+      REDIS_URL: redis://redis:6379/0
+      MINIO_HOST: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      JOB_SOURCING_URL: http://job-sourcing:8000
+      DATA_CLEANING_URL: http://data-cleaning:8000
+      SEARCH_ENGINE_URL: http://search-engine:8002
+      RECOMMENDATION_URL: http://recommendation:8001
+      LAKE_API_URL: http://lake-api:8004
+      # URL interne inter-conteneurs (ne pas surcharger avec localhost du host)
+      AIRFLOW_URL: ${AIRFLOW_INTERNAL_URL:-http://airflow:8080}
+      DASHBOARD_MODE: ${DASHBOARD_MODE:-sourcing_only}
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on:
+      minio:
+        condition: service_healthy
+      lake-api:
+        condition: service_started
+
+  # ---- PROFIL : monitoring ----
+
+  prometheus:
+    profiles: ["monitoring", "demo-bigdata", "all"]
+    image: prom/prometheus:v2.49.1
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - ./monitoring/blackbox.yml:/etc/prometheus/blackbox.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    depends_on:
+      - node-exporter
+      - cadvisor
+      - blackbox-exporter
+
+  grafana:
+    profiles: ["monitoring", "demo-bigdata", "all"]
+    image: grafana/grafana:10.3.3
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-CHANGEME}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    profiles: ["monitoring", "demo-bigdata", "all"]
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - "/:/host:ro,rslave"
+    ports:
+      - "127.0.0.1:9100:9100"
+
+  cadvisor:
+    profiles: ["monitoring", "demo-bigdata", "all"]
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - "/dev/kmsg:/dev/kmsg"
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:rw"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+    ports:
+      - "127.0.0.1:8085:8080"
+
+  blackbox-exporter:
+    profiles: ["monitoring", "demo-bigdata", "all"]
+    image: prom/blackbox-exporter:v0.25.0
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+    volumes:
+      - "./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro"
+    ports:
+      - "127.0.0.1:9115:9115"
+
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: all
+      AUTOHEAL_INTERVAL: 20
+      AUTOHEAL_START_PERIOD: 60
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 20
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ---- PROFIL : api ----
+
+  api-gateway:
+    profiles: ["api", "demo-bigdata", "all"]
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      all: "true"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://talentflow:${POSTGRES_PASSWORD:-CHANGEME}@postgres:5432/talentflow_app}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-CHANGEME}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-CHANGEME}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-1h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      JWT_EXPIRATION: ${JWT_ACCESS_EXPIRES_IN:-1h}
+      SEARCH_ENGINE_URL: http://search-engine:8002
+      RECOMMENDATION_URL: http://recommendation:8001
+      HOST: ${API_GATEWAY_HOST:-0.0.0.0}
+      GRAPHQL_PATH: /graphql
+      API_PUBLIC_BASE_URL: ${API_PUBLIC_BASE_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      NODE_ENV: production
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      CV_DOCUMENT_RL_ENABLED: ${CV_DOCUMENT_RL_ENABLED:-true}
+      CV_DOCUMENT_RL_EPSILON: ${CV_DOCUMENT_RL_EPSILON:-0.02}
+      CV_DOCUMENT_RL_POLICY_PATH: /app/runtime-data/gateway_cv_rl_policy_state.json
+      CV_DOCUMENT_RL_EVENTS_PATH: /app/runtime-data/gateway_cv_rl_policy_events.jsonl
+    ports:
+      - "127.0.0.1:${API_GATEWAY_PORT:-3000}:3000"
+    volumes:
+      - gateway_runtime_data:/app/runtime-data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      search-engine:
+        condition: service_healthy
+      recommendation:
+        condition: service_started
+
+  recommendation:
+    profiles: ["api", "demo-bigdata", "all"]
+    build:
+      context: ./recommendation
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      all: "true"
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_PROVIDER_ORDER: ${LLM_PROVIDER_ORDER:-gemini,deepseek}
+      LLM_FALLBACK_PROVIDER: ${LLM_FALLBACK_PROVIDER:-deepseek}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY_FALLBACK: ${GEMINI_API_KEY_FALLBACK:-}
+      GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_MODEL_PRIORITY: ${GEMINI_MODEL_PRIORITY:-gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
+      GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-45}
+      GEMINI_MAX_RETRIES: ${GEMINI_MAX_RETRIES:-2}
+      GEMINI_RETRY_BASE_SECONDS: ${GEMINI_RETRY_BASE_SECONDS:-1.0}
+      DEEPSEEK_ENABLED: ${DEEPSEEK_ENABLED:-true}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_REASONER_MODEL: ${DEEPSEEK_REASONER_MODEL:-deepseek-reasoner}
+      DEEPSEEK_TIMEOUT_SECONDS: ${DEEPSEEK_TIMEOUT_SECONDS:-45}
+      DEEPSEEK_MAX_RETRIES: ${DEEPSEEK_MAX_RETRIES:-2}
+      DEEPSEEK_RETRY_BASE_SECONDS: ${DEEPSEEK_RETRY_BASE_SECONDS:-1.0}
+      DEEPSEEK_MAX_OUTPUT_TOKENS_CHAT: ${DEEPSEEK_MAX_OUTPUT_TOKENS_CHAT:-700}
+      DEEPSEEK_MAX_OUTPUT_TOKENS_REASONER: ${DEEPSEEK_MAX_OUTPUT_TOKENS_REASONER:-1600}
+      DEEPSEEK_DAILY_TOKEN_BUDGET: ${DEEPSEEK_DAILY_TOKEN_BUDGET:-500000}
+      DEEPSEEK_DAILY_COST_BUDGET_USD: ${DEEPSEEK_DAILY_COST_BUDGET_USD:-5.0}
+      DEEPSEEK_REASONER_COMPLEXITY_THRESHOLD: ${DEEPSEEK_REASONER_COMPLEXITY_THRESHOLD:-1.0}
+      DEEPSEEK_REASONER_MAX_SHARE: ${DEEPSEEK_REASONER_MAX_SHARE:-0.20}
+      DEEPSEEK_QUEUE_CONCURRENCY: ${DEEPSEEK_QUEUE_CONCURRENCY:-4}
+      DEEPSEEK_QUEUE_MAX_SIZE: ${DEEPSEEK_QUEUE_MAX_SIZE:-32}
+      DEEPSEEK_QUEUE_WAIT_MS: ${DEEPSEEK_QUEUE_WAIT_MS:-900}
+      DEEPSEEK_RPM_GLOBAL: ${DEEPSEEK_RPM_GLOBAL:-120}
+      DEEPSEEK_RPM_PER_IP: ${DEEPSEEK_RPM_PER_IP:-20}
+      DEEPSEEK_INPUT_COST_PER_MILLION_CACHE_MISS: ${DEEPSEEK_INPUT_COST_PER_MILLION_CACHE_MISS:-0.28}
+      DEEPSEEK_OUTPUT_COST_PER_MILLION: ${DEEPSEEK_OUTPUT_COST_PER_MILLION:-0.42}
+      LLM_CACHE_ENABLED: ${LLM_CACHE_ENABLED:-true}
+      LLM_CACHE_TTL_SECONDS: ${LLM_CACHE_TTL_SECONDS:-86400}
+      LLM_REPAIR_CACHE_TTL_SECONDS: ${LLM_REPAIR_CACHE_TTL_SECONDS:-300}
+      LLM_PROMPT_TEMPLATE_VERSION: ${LLM_PROMPT_TEMPLATE_VERSION:-v2}
+      LLM_CIRCUIT_FAILURE_THRESHOLD: ${LLM_CIRCUIT_FAILURE_THRESHOLD:-5}
+      LLM_CIRCUIT_RESET_SECONDS: ${LLM_CIRCUIT_RESET_SECONDS:-60}
+      LLM_DECISION_MIN_JOB_COUNT: ${LLM_DECISION_MIN_JOB_COUNT:-2}
+      LLM_DECISION_MIN_TOP_SCORE: ${LLM_DECISION_MIN_TOP_SCORE:-0.62}
+      LLM_DECISION_MIN_SCORE_GAP: ${LLM_DECISION_MIN_SCORE_GAP:-0.04}
+      LLM_DECISION_MISSING_RATIO_TRIGGER: ${LLM_DECISION_MISSING_RATIO_TRIGGER:-0.35}
+      LLM_DECISION_OFFER_MIN_MISSING_SKILLS: ${LLM_DECISION_OFFER_MIN_MISSING_SKILLS:-2}
+      LLM_DECISION_OFFER_SUMMARY_MIN_CHARS: ${LLM_DECISION_OFFER_SUMMARY_MIN_CHARS:-500}
+      RECOMMENDATION_MIN_MEANINGFUL_SCORE: ${RECOMMENDATION_MIN_MEANINGFUL_SCORE:-0.52}
+      RECOMMENDATION_MAX_SCORE_DROP_FROM_TOP: ${RECOMMENDATION_MAX_SCORE_DROP_FROM_TOP:-0.22}
+      RECOMMENDATION_SINGLE_STRONG_MATCH_SCORE: ${RECOMMENDATION_SINGLE_STRONG_MATCH_SCORE:-0.82}
+      RECOMMENDATION_DEEPSEEK_AMBIGUOUS_FIRST_ENABLED: ${RECOMMENDATION_DEEPSEEK_AMBIGUOUS_FIRST_ENABLED:-true}
+      RECOMMENDATION_DEEPSEEK_BORDERLINE_DELTA: ${RECOMMENDATION_DEEPSEEK_BORDERLINE_DELTA:-0.06}
+      RECOMMENDATION_POLICY_VERSION: ${RECOMMENDATION_POLICY_VERSION:-score_v5}
+      MATCHING_CANDIDATE_BACKEND: ${MATCHING_CANDIDATE_BACKEND:-search_api}
+      SEARCH_ENGINE_URL: http://search-engine:8002
+      SEARCH_ENGINE_HTTP_TIMEOUT: ${SEARCH_ENGINE_HTTP_TIMEOUT:-120}
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      RECOMMENDATION_ENABLE_LEGACY_ROUTERS: ${RECOMMENDATION_ENABLE_LEGACY_ROUTERS:-false}
+      CV_DOCUMENT_RL_ENABLED: ${CV_DOCUMENT_RL_ENABLED:-true}
+      CV_DOCUMENT_RL_EPSILON: ${CV_DOCUMENT_RL_EPSILON:-0.02}
+      CV_DOCUMENT_RL_POLICY_PATH: /app/runtime-data/recommendation_cv_rl_policy_state.json
+      CV_DOCUMENT_RL_EVENTS_PATH: /app/runtime-data/recommendation_cv_rl_policy_events.jsonl
+      CV_DOCUMENT_SUPERVISED_ENABLED: ${CV_DOCUMENT_SUPERVISED_ENABLED:-true}
+      CV_DOCUMENT_SUPERVISED_MODEL_PATH: ${CV_DOCUMENT_SUPERVISED_MODEL_PATH:-/app/data/cv_supervised_model.json}
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - recommendation_runtime_data:/app/runtime-data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health',timeout=5).getcode()==200 else 1)\"",
+        ]
+      interval: 30s
+      timeout: 8s
+      retries: 4
+      start_period: 50s
+    depends_on:
+      - search-engine
+      - redis
+
+  search-engine:
+    profiles: ["api", "demo-bigdata", "all"]
+    build:
+      context: ./search-engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      all: "true"
+    environment:
+      SEARCH_BACKEND: ${SEARCH_BACKEND:-qdrant}
+      PYTHONPATH: /app
+      SEARCH_INDEX_INCREMENTAL_ENABLED: ${SEARCH_INDEX_INCREMENTAL_ENABLED:-true}
+      SEARCH_INDEX_NAME: ${SEARCH_INDEX_NAME:-talentflow_jobs}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-talentflow_jobs}
+      QDRANT_HYBRID_ENABLED: ${QDRANT_HYBRID_ENABLED:-false}
+      QDRANT_ENABLE_SPARSE: ${QDRANT_ENABLE_SPARSE:-false}
+      QDRANT_RRF_K: ${QDRANT_RRF_K:-60}
+      QDRANT_DENSE_LIMIT: ${QDRANT_DENSE_LIMIT:-50}
+      QDRANT_LEXICAL_LIMIT: ${QDRANT_LEXICAL_LIMIT:-50}
+      SEARCH_EXCLUDE_EXPIRED: ${SEARCH_EXCLUDE_EXPIRED:-true}
+      SEARCH_STALE_PENALTY: ${SEARCH_STALE_PENALTY:-0.45}
+      SEARCH_MIN_QUALITY_USER_FACING: ${SEARCH_MIN_QUALITY_USER_FACING:-0.20}
+      SEARCH_MIN_TITLE_CONFIDENCE: ${SEARCH_MIN_TITLE_CONFIDENCE:-0.20}
+      SEARCH_TEXT_NOISE_PENALTY: ${SEARCH_TEXT_NOISE_PENALTY:-0.78}
+      RERANK_ENABLED: ${RERANK_ENABLED:-false}
+      RERANK_POLICY_MODE: ${RERANK_POLICY_MODE:-auto}
+      RERANK_POLICY_TARGET_K: ${RERANK_POLICY_TARGET_K:-10}
+      RERANK_POLICY_MIN_CASES: ${RERANK_POLICY_MIN_CASES:-3}
+      RERANK_POLICY_ENABLE_NDCG_GAIN_ABS: ${RERANK_POLICY_ENABLE_NDCG_GAIN_ABS:-0.01}
+      RERANK_POLICY_ENABLE_MRR_GAIN_ABS: ${RERANK_POLICY_ENABLE_MRR_GAIN_ABS:-0.005}
+      RERANK_POLICY_DISABLE_NDCG_GAIN_ABS: ${RERANK_POLICY_DISABLE_NDCG_GAIN_ABS:--0.01}
+      RERANK_POLICY_DISABLE_MRR_GAIN_ABS: ${RERANK_POLICY_DISABLE_MRR_GAIN_ABS:--0.005}
+      RERANK_POLICY_ENABLE_WINDOWS: ${RERANK_POLICY_ENABLE_WINDOWS:-2}
+      RERANK_POLICY_DISABLE_WINDOWS: ${RERANK_POLICY_DISABLE_WINDOWS:-1}
+      RERANK_POLICY_MAX_HISTORY: ${RERANK_POLICY_MAX_HISTORY:-100}
+      RERANK_BLEND_ALPHA: ${RERANK_BLEND_ALPHA:-0.75}
+      RERANK_MIN_QUERY_TOKENS: ${RERANK_MIN_QUERY_TOKENS:-2}
+      RERANK_MAX_TEXT_CHARS: ${RERANK_MAX_TEXT_CHARS:-12000}
+      RERANK_MIN_RAW_SCORE_SPREAD: ${RERANK_MIN_RAW_SCORE_SPREAD:-0.05}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+      MONGODB_URI: mongodb://mongodb:27017/talentflow_silver
+      MONGODB_DATABASE: ${SEARCH_MONGODB_DATABASE:-talentflow_silver}
+      MONGODB_COLLECTION: ${SEARCH_MONGODB_COLLECTION:-jobs}
+    ports:
+      - "127.0.0.1:8003:8002"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/health',timeout=5).getcode()==200 else 1)\"",
+        ]
+      interval: 30s
+      timeout: 8s
+      retries: 4
+      start_period: 60s
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  lake-api:
+    profiles: ["sourcing", "sourcing-only", "lake-only", "api", "demo-bigdata", "all"]
+    build:
+      context: ./lake-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      all: "true"
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_BRONZE:-talentflow-bronze}
+    ports:
+      - "127.0.0.1:8004:8004"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8004/health',timeout=5).getcode()==200 else 1)\"",
+        ]
+      interval: 30s
+      timeout: 8s
+      retries: 4
+      start_period: 40s
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  # ---- PROFIL : orchestration ----
+
+  postgres:
+    profiles: ["sourcing", "sourcing-only", "orchestration", "api", "demo-bigdata", "all"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: talentflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
+      POSTGRES_DB: talentflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talentflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow:
+    profiles: ["sourcing", "sourcing-only", "orchestration", "demo-bigdata", "all"]
+    image: apache/airflow:2.8.1-python3.11
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql://talentflow:${POSTGRES_PASSWORD:-CHANGEME}@postgres:5432/talentflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://talentflow:${POSTGRES_PASSWORD:-CHANGEME}@postgres:5432/talentflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: false
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: false
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 60
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: true
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+      # Connexions vers les services internes
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-CHANGEME}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-CHANGEME}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_BRONZE:-talentflow-bronze}
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_JOBS_RAW: ${KAFKA_TOPIC_JOBS_RAW:-talentflow_jobs_raw}
+      JOB_SOURCING_URL: http://job-sourcing:8000
+      JOB_SOURCING_REQUIRED: ${JOB_SOURCING_REQUIRED:-false}
+      QA_ALERTS_LIMIT: ${QA_ALERTS_LIMIT:-300}
+      DATA_CLEANING_URL: http://data-cleaning:8000
+      LAKE_API_URL: http://lake-api:8004
+    volumes:
+      - ./orchestration/dags:/opt/airflow/dags
+      - ./job-sourcing/airflow/dags:/opt/airflow/dags/sourcing
+      - ./data-cleaning/airflow/dags:/opt/airflow/dags/cleaning
+      - airflow_logs:/opt/airflow/logs
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    command:
+      - bash
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@talentflow.com || true
+        # Lancer le scheduler en arriere-plan + webserver au premier plan
+        airflow scheduler &
+        airflow webserver
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongodb_data:
+  elasticsearch_data:
+  qdrant_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  airflow_logs:
+  spark_checkpoint:
+  spark_pip_cache:
+  spark_ivy_cache:
+  gateway_runtime_data:
+  recommendation_runtime_data:
+  ollama_data:

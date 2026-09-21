@@ -1,0 +1,95 @@
+# Étape 7: Orchestration Config - Airflow
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+data:
+  airflow.cfg: |
+    [core]
+    dags_folder = /opt/airflow/dags
+    base_log_folder = /opt/airflow/logs
+    executor = LocalExecutor
+    sql_alchemy_conn = postgresql://airflow:CHANGEME@postgres:5432/airflow
+    
+    [database]
+    sql_alchemy_pool_size = 20
+    sql_alchemy_max_overflow = 20
+    
+    [scheduler]
+    dag_dir_list_interval = 30
+    scheduler_heartbeat_interval = 60
+    
+    [webserver]
+    expose_config = True
+    rbac = True
+    
+    [logging]
+    remote_logging = False
+    log_level = INFO
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: airflow-secrets
+type: Opaque
+stringData:
+  AIRFLOW_VAR_ES_HOST: elasticsearch
+  AIRFLOW_VAR_REDIS_HOST: redis
+  AIRFLOW_VAR_POSTGRES_HOST: postgres
+  AIRFLOW__CORE__FERNET_KEY: "encrypted-key-here"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: talentflow-pipeline
+spec:
+  schedule: "0 2 * * *"  # 2h chaque jour
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: airflow-scheduler
+            image: airflow:2.7-python3.11
+            command:
+              - "airflow"
+              - "dags"
+              - "test"
+              - "talentflow_pipeline"
+            envFrom:
+            - secretRef:
+                name: airflow-secrets
+          restartPolicy: OnFailure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-webui
+  template:
+    metadata:
+      labels:
+        app: airflow-webui
+    spec:
+      containers:
+      - name: webui
+        image: airflow:2.7-python3.11
+        ports:
+        - containerPort: 8080
+        command:
+          - "airflow"
+          - "webserver"
+        envFrom:
+        - secretRef:
+            name: airflow-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

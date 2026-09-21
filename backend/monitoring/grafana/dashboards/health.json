@@ -1,0 +1,59 @@
+{
+  "dashboard": {
+    "title": "TalentFlow - Services Health",
+    "uid": "talentflow-health",
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Gateway",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"api-gateway\"}"
+          }
+        ],
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            {"color": "red", "value": 0},
+            {"color": "yellow", "value": 0.5},
+            {"color": "green", "value": 1}
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "Elasticsearch",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "elasticsearch_cluster_health_status"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Redis Memory",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes / redis_memory_max_bytes * 100"
+          }
+        ],
+        "gauge": {"minValue": 0, "maxValue": 100}
+      },
+      {
+        "id": 4,
+        "title": "PostgreSQL Connections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count"
+          }
+        ]
+      }
+    ]
+  }
+}

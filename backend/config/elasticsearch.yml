@@ -1,0 +1,16 @@
+# Elasticsearch Configuration - UNIQUE
+elasticsearch:
+  hosts:
+    - "elasticsearch:9200"
+  
+  index:
+    jobs: "job_embeddings"
+    cvs: "cv_embeddings"
+    
+  mapping:
+    dimension: 384
+    similarity: "cosine"
+    
+  refresh_interval: "1s"
+  number_of_shards: 1
+  number_of_replicas: 0

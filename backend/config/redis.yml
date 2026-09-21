@@ -1,0 +1,18 @@
+# Redis Configuration - UNIQUE
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+  
+  # Connection pool
+  max_connections: 20
+  socket_keepalive: true
+  
+  # TTLs
+  cv_analysis_ttl: 86400  # 24h
+  job_match_ttl: 3600    # 1h
+  embedding_ttl: 604800  # 7 days
+  
+  # Memory
+  max_memory: "512mb"
+  eviction_policy: "allkeys-lru"
