@@ -1,28 +1,41 @@
 # TalentFlow
 
-Plateforme de recrutement et de matching offres/CV, bâtie sur une architecture big data en microservices : collecte d'offres, nettoyage, indexation sémantique, recommandation et application mobile/web.
+Un pipeline big data qui transforme des offres d'emploi éparpillées sur le web en une recherche sémantique et en analyses CV / offre, servies à une application Flutter.
 
-## Problème résolu
+Le difficile n'est pas de collecter une offre. C'est d'en collecter des milliers sous des formats différents, de les nettoyer sans doublons, puis de garder le tout assez frais pour qu'un candidat puisse s'y fier.
 
-Les offres d'emploi sont dispersées sur de nombreux sites aux formats hétérogènes, et les candidats comparent difficilement leur CV à ces offres. TalentFlow collecte les offres en continu, les normalise dans un lac de données (couches Bronze puis Silver), les indexe pour une recherche sémantique et analyse l'adéquation entre un CV et une offre.
+## Ce que ça apporte
 
-## Fonctionnalités
+- **Un flux de bout en bout, de la page web à l'écran du candidat.** Collecte (Scrapy, Adzuna, JSearch), Kafka, Spark Structured Streaming, lac MinIO, MongoDB, Qdrant, puis passerelle NestJS et client Flutter. Chaque étape est un service isolé.
+- **Des données traitées pour être utilisables, pas seulement stockées.** Déduplication par empreinte dans Redis dès la collecte, couches Bronze et Silver, calcul de fraîcheur avec durée de validité par offre, pénalités pour les contenus bruités des job boards.
+- **Des appels LLM qui ne bloquent pas le service.** Les analyses de CV passent par Gemini ou DeepSeek, avec cache, budget et disjoncteur par fournisseur (5 échecs ouvrent le circuit, 60 secondes avant nouvel essai par défaut, réglable par variables d'environnement).
 
-- Collecte d'offres par spiders Scrapy et clients d'API (Adzuna, JSearch), avec déduplication par empreinte dans Redis et publication sur Kafka (`job-sourcing`).
-- Ingestion en continu Kafka vers MinIO (couche Bronze) via Spark Structured Streaming (`spark-streaming`).
-- Nettoyage, déduplication et enrichissement Bronze vers MongoDB (couche Silver) (`data-cleaning`).
-- Consultation de la couche Bronze par une API FastAPI (`lake-api`).
-- Recherche sémantique : embeddings multilingues (`paraphrase-multilingual-MiniLM-L12-v2`) indexés dans Qdrant, filtres de qualité et de fraîcheur (`search-engine`).
-- Recommandation : analyse CV / offre (écarts de compétences, score de matching), classification de documents CV, appel à des LLM (Gemini, DeepSeek) avec cache et disjoncteur (`recommendation`).
-- Passerelle NestJS : authentification JWT, GraphQL et REST, favoris, historique, tâches d'analyse de CV, export PDF de rapports (`api-gateway`).
-- Orchestration Airflow, supervision Prometheus / Grafana, tableau de bord Streamlit (`dashboard`).
-- Client Flutter (Android et web) (`frontend/talentflow_flutter`).
+## Le problème
 
-## Architecture
+Un candidat cherche « data engineer » et tombe sur la même annonce publiée sous trois titres, sur quatre sites, dont une périmée depuis des semaines. Chaque site structure ses pages à sa façon. Comparer son CV à ces offres se fait à la main.
+
+TalentFlow règle cela en amont. Il collecte en continu, normalise dans un lac de données, retire les doublons et les offres expirées, puis indexe le texte par sens plutôt que par mots-clés. Le CV est ensuite comparé aux offres : écarts de compétences, score de matching.
+
+## Démarrer en cinq minutes
+
+Prérequis : Docker et Docker Compose.
+
+```bash
+cd backend
+cp .env.example .env
+# renseigner les valeurs CHANGEME dans .env (mots de passe, JWT_SECRET, clés LLM)
+docker compose --profile lake-only up -d --build
+docker compose ps
+```
+
+Ce profil démarre l'infrastructure de base, MinIO, `lake-api` (port 8004) et le tableau de bord Streamlit (port 8501). Pour ajouter la passerelle, la recommandation et la recherche, utilisez `--profile api`. Les scripts `scripts/bash/env-generator.sh` et `scripts/powershell/env-generator.ps1` génèrent les secrets. La passerelle refuse de démarrer sans `JWT_SECRET`.
+
+## Comment ça marche
 
 ```mermaid
 flowchart LR
   S[Sites et API d'emploi] --> JS[job-sourcing]
+  JS -->|empreinte| R[(Redis)]
   JS --> K[(Kafka)]
   K --> SS[spark-streaming]
   SS --> B[(MinIO Bronze)]
@@ -32,6 +45,7 @@ flowchart LR
   SE --> Q[(Qdrant)]
   B --> LA[lake-api]
   SE --> RC[recommendation]
+  RC -->|LLM avec cache et disjoncteur| L[Gemini / DeepSeek]
   RC --> GW[api-gateway]
   SE --> GW
   GW --> PG[(PostgreSQL)]
@@ -41,6 +55,16 @@ flowchart LR
   PR[Prometheus / Grafana] -.-> GW
 ```
 
+Trois choix structurent le projet.
+
+**Un lac en deux couches.** Bronze garde la donnée brute telle que Spark l'a reçue de Kafka, avec partition et offset. Silver contient la donnée nettoyée dans MongoDB. `data-cleaning` lit Bronze dans MinIO : une règle de nettoyage modifiée s'applique à la donnée déjà collectée, sans nouvelle collecte.
+
+**Dédupliquer à la source.** `job-sourcing` calcule une empreinte par offre et l'interroge dans Redis avant de publier sur Kafka. Les doublons n'entrent pas dans le pipeline, ce qui épargne Spark, le stockage et l'index.
+
+**La fraîcheur comme règle de classement.** `data-cleaning` annote chaque offre (date, source de la date, durée de validité). `search-engine` filtre les offres expirées et rétrograde les anciennes. Les tests couvrent le cas d'une offre internationale de 38 jours jugée périmée avec un seuil de 21 jours.
+
+Le scraping, lui, apprend : le module `smart_parser` mémorise par domaine les sélecteurs CSS qui ont fonctionné et réutilise les meilleurs sur les pages suivantes.
+
 ## Stack technique
 
 | Domaine | Technologies |
@@ -48,52 +72,10 @@ flowchart LR
 | Passerelle | NestJS 10, TypeScript, Prisma, PostgreSQL, GraphQL (Apollo), Passport JWT, pdf-lib |
 | Services de données | Python, FastAPI, Scrapy, PySpark 3.5 |
 | Stockage et messagerie | Kafka, MinIO, MongoDB, Redis, Qdrant, Elasticsearch |
-| IA | fastembed / sentence-transformers, Gemini, DeepSeek, OCR (pytesseract) |
+| IA | fastembed / sentence-transformers (`paraphrase-multilingual-MiniLM-L12-v2`), Gemini, DeepSeek, OCR (pytesseract) |
 | Orchestration et supervision | Airflow, Prometheus, Grafana, cAdvisor, Streamlit |
-| Client | Flutter (Dart ≥ 3.9) |
+| Client | Flutter (Dart 3.9 ou plus) |
 | Déploiement | Docker Compose, manifestes Kubernetes, GitHub Actions, Nginx |
-
-## Installation
-
-Prérequis : Docker et Docker Compose, Python 3.11, Node.js 18+ (développement de la passerelle), Flutter (client).
-
-```bash
-git clone <url-du-depot>
-cd talentflow/backend
-cp .env.example .env
-```
-
-Renseigner dans `.env` les valeurs marquées `CHANGEME` (mots de passe, `JWT_SECRET`, clés LLM). La passerelle refuse de démarrer sans `JWT_SECRET`. Les scripts `scripts/bash/env-generator.sh` et `scripts/powershell/env-generator.ps1` peuvent générer ces secrets.
-
-## Usage
-
-Les services sont regroupés par profils Docker Compose (`lake-only`, `sourcing-only`, `sourcing`, `api`, `monitoring`, `orchestration`, `demo-bigdata`, `all`).
-
-```bash
-cd backend
-docker compose --profile lake-only up -d --build
-docker compose --profile api up -d --build
-docker compose ps
-```
-
-Ports exposés en local uniquement (127.0.0.1) : passerelle 3000, job-sourcing 8000, recommendation 8001, data-cleaning 8002, search-engine 8003, lake-api 8004, dashboard Streamlit 8501, Grafana 3001, Airflow 8080. Un utilitaire `manage.sh` (ou `manage.ps1`) regroupe les opérations courantes.
-
-Client Flutter :
-
-```bash
-cd frontend/talentflow_flutter
-flutter pub get
-flutter run -d chrome --dart-define-from-file=env/web.local.json.example
-```
-
-Passerelle seule, en développement :
-
-```bash
-cd backend/api-gateway
-npm install
-npx prisma generate
-npm run start:dev
-```
 
 ## Structure du dépôt
 
@@ -112,36 +94,35 @@ backend/
   shared/            Modules Python communs
   config/, nginx/, scripts/
   docker-compose.yml
-docs/                Notes d'architecture techniques
+docs/                Notes d'architecture
 frontend/talentflow_flutter/   Client Flutter
 .github/workflows/   Déploiement et tests de fumée
 ```
 
-## Tests
+Pour vérifier le code, commencez par les tests :
 
 ```bash
 cd backend/data-cleaning && python -m pytest tests
 cd backend/search-engine && python -m pytest tests
-cd backend/recommendation && python -m pytest tests
-cd backend/api-gateway && npm run test:e2e:smoke   # nécessite SMOKE_TEST_PASSWORD et une passerelle active
-cd frontend/talentflow_flutter && flutter test
 ```
 
-Les suites Python de `data-cleaning` et `search-engine` ont été exécutées à la préparation du dépôt ; les autres tests nécessitent leurs dépendances ou services.
+Ils sont exécutables sans les services. Les tests de `recommendation`, le test de fumée de la passerelle (`npm run test:e2e:smoke`) et `flutter test` demandent leurs dépendances ou une passerelle active.
 
-## Limites connues
+## Limites et suite
 
-- Aucun jeu de données n'est fourni hormis de petits échantillons synthétiques ; les données réelles proviennent de la collecte et ne sont pas redistribuées.
-- La couverture de tests est partielle : pas de tests unitaires côté passerelle, un seul test de widget côté Flutter.
-- Les scripts de déploiement et workflows GitHub Actions supposent un hôte distant configuré via des secrets (`OCI_HOST`, `OCI_USER`, `OCI_SSH_KEY`) ; les noms de domaine sont remplacés par `example.com`.
-- La pile complète est lourde (Kafka, Spark, Elasticsearch, Qdrant, Airflow) et demande des ressources importantes.
-- Les fonctions LLM nécessitent des clés d'API externes.
-- Certains documents de `docs/` et README de services sont rédigés pendant le développement et peuvent diverger du code.
+Le projet vise une démonstration d'architecture, pas un service en production. Ce périmètre est un choix.
 
-## Licence
+- **Données.** Seuls de petits échantillons synthétiques sont fournis. Les données réelles viennent de la collecte et ne sont pas redistribuées.
+- **Ressources.** La pile complète (Kafka, Spark, Elasticsearch, Qdrant, Airflow) est lourde. Les profils Compose permettent de n'en lancer qu'une partie.
+- **LLM.** Les analyses de CV demandent des clés d'API externes.
+- **Tests.** Les services de données sont testés. La passerelle n'a qu'un test de fumée et le client Flutter un seul test de widget. Étendre cette couverture est la suite la plus utile.
+- **Déploiement.** Les workflows GitHub Actions supposent un hôte distant configuré par secrets (`OCI_HOST`, `OCI_USER`, `OCI_SSH_KEY`). Les noms de domaine sont remplacés par `example.com`.
+- **Documentation.** Certaines notes de `docs/` datent du développement et peuvent différer du code. En cas d'écart, le code fait foi.
 
-Licence : tous droits réservés. Voir le fichier `LICENSE`.
+Le client Flutter se lance avec `flutter run -d chrome --dart-define-from-file=env/web.local.json.example` depuis `frontend/talentflow_flutter`.
 
-## Contact
+## Licence et contact
 
-Jean-Paul ADOGLI, étudiant ingénieur en data science et big data, GitHub : [Jean-Paul15](https://github.com/Jean-Paul15).
+Licence : tous droits réservés. La lecture du code à des fins d'évaluation est permise. Voir le fichier `LICENSE`.
+
+Jean-Paul ADOGLI, étudiant ingénieur en data science et big data. GitHub : [Jean-Paul15](https://github.com/Jean-Paul15).
