@@ -1,29 +1,7 @@
 name: Deploy TalentFlow
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/workflows/deploy-oci.yml"
   workflow_dispatch:
-    inputs:
-      deploy_profile:
-        description: "Docker Compose profile"
-        required: true
-        default: "lake-only"
-        type: choice
-        options:
-          - lake-only
-          - sourcing-only
-          - sourcing
-          - orchestration
-          - all
-      force_rebuild:
-        description: "Force docker compose rebuild"
-        required: true
-        default: false
-        type: boolean
 
 concurrency:
   group: deploy-main

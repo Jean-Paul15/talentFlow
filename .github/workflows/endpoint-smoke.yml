@@ -1,20 +1,7 @@
 name: Endpoint Smoke
 
 on:
-  push:
-  pull_request:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
-    inputs:
-      run_full:
-        description: "Exécuter aussi la suite complète"
-        required: false
-        default: "false"
-        type: choice
-        options:
-          - "false"
-          - "true"
 
 jobs:
   critical:

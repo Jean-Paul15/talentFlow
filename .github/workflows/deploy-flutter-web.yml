@@ -1,11 +1,6 @@
 ﻿name: Deploy Flutter Web PWA
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "frontend/talentflow_flutter/**"
-      - ".github/workflows/deploy-flutter-web.yml"
   workflow_dispatch:
 
 concurrency:
